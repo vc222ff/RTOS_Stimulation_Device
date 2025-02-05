@@ -1,4 +1,78 @@
 # 2DT304 - Wearable Posture Correction Device
+Members: Victor Cajfeldt <br>
+Program: Computer Engineering<br>
+Course: 2DT304<br>
+Date of latest submission: 2025-??-??<br>
+<br>
+This README document is divided into three sections: Compilation of java files, how to start the TFTP server and the PDF report for the project.
+
+
+## Instructions for the device
+
+**Table of contents:** <br>
+[**1. Compilation**](#compilation) <br> 
+[**2. Running the TFTP Server**](#running-the-tftp-server)<br> 
+[**3. PDF Report**](#pdf-report) <br>
+
+
+# Instructions for TFTP Server 
+Members: Victor Cajfeldt <br>
+Program: Computer Engineering<br>
+Course: 1DV702<br>
+Date of latest submission: 2024-06-09<br>
+<br>
+This guide is divided into three sections: Compilation of java files, how to start the TFTP server and the PDF report for the project.
+
+**Table of contents:** <br>
+[**1. Compilation**](#compilation) <br> 
+[**2. Running the TFTP Server**](#running-the-tftp-server)<br> 
+[**3. PDF Report**](#pdf-report) <br>
+
+
+## Compilation
+To compile the TFTP server we start by navigating to the root folder, which for this project is the folder "assignment3". We open up the intergrated terminal in the folder and run the following command:<br>
+
+
+*Compile command:*
+```bash 
+javac -d bin/ src/TFTPServer.java
+```
+This command compiles the main class "TFTPServer" and places it in bin/ folder relative from current directory, "assignment3".
+
+
+*Directory structure after compilation:*
+```ascii
+└── assignment3/
+    ├── bin/
+    │   ├── TFTPServer.class
+    │   └── TFTPServer$1.class
+    ├── img/
+    ├── public/
+    │   ├── read/
+    │   └── write/
+    ├── src/
+    │   └── TFTPServer.java
+    ├── README.md
+    ├── test_tftp.py
+    └── tftpclient.py
+```
+After compiling the .java files your project directory will resemble the following structure.
+
+
+## Running the TFTP server
+To start running the Trivial File Transfer Server we navigate to the root directory "assignment3" and open the terminal. Here we execute the following commands to start the TFTP server:
+
+
+*Simple execution:*
+```bash
+java -cp .:bin TFTPServer
+```
+Uses standard settings, port 4970 and paths "public/read" & "public/write".
+
+## PDF Report
+The report regarding the project can be found here: 
+[PDF report](vc222ff_1dv701_assign3.docx.pdf)
+
 
 
 
