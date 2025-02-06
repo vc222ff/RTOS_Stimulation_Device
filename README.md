@@ -7,13 +7,12 @@ Date of latest submission: 2025-??-??<br>
 This README document is divided into three sections: Compilation of java files, how to start the TFTP server and the PDF report for the project.
 
 
-
 ## Instructions for the device
 
 **Table of contents:** <br>
-[**1. Compilation**](#compilation) <br> 
-[**2. Running the TFTP Server**](#running-the-tftp-server)<br> 
-[**3. PDF Report**](#pdf-report) <br>
+[**1. ????**](#???) <br> 
+[**2. ????**](#???) <br> 
+[**3. ????**](#???) <br>
 
 
 

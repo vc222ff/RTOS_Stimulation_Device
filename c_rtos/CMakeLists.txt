@@ -1,24 +1,74 @@
+# Cmake Pico project file
 cmake_minimum_required(VERSION 3.13)
 
-# Name project
-SET(ProjectName RTOS-rp2040)
+# Sets project name
+SET(ProjectName c_rtos)
 
-# Set any variables required for importing libraries
-SET(FREERTOS_KERNEL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib/FreeRTOS-Kernel)
+# Sets compiler settings for the RP2040
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Import those libraries
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
+if(WIN32)
+    set(USERHOME $ENV{USERPROFILE})
+else()
+    set(USERHOME $ENV{HOME})
+endif()
+set(sdkVersion 2.1.0)
+set(toolchainVersion 13_3_Rel1)
+set(picotoolVersion 2.1.0)
+set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
+if (EXISTS ${picoVscode})
+    include(${picoVscode})
+endif()
+# ====================================================================================
+
+# Sets the board type
+set(PICO_BOARD pico_w CACHE STRING "Board type")
+
+# Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
-include(${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/FreeRTOS_Kernel_import.cmake)
+#include(${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/FreeRTOS_Kernel_import.cmake)
 
-# Define project
-project(${ProjectName})
+# Defines the project
+project(${ProjectName} C CXX ASM)
 
 # Initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# Add subdirectories
-add_subdirectory(src)
+# Adds project executables
+add_executable(${ProjectName}
+    main.c
+)
 
-# if you have anything in "lib" folder then uncomment below - remember to add a CMakeLists.txt
-# file to the "lib" directory
-#add_subdirectory(lib)
+# Sets program name and version
+pico_set_program_name(${ProjectName} "c_rtos")
+pico_set_program_version(${ProjectName} "0.1")
+
+# Modify the below lines to enable/disable output over UART/USB
+pico_enable_stdio_uart(${ProjectName} 0)
+pico_enable_stdio_usb(${ProjectName} 1)
+
+# Adds standard include files to build
+target_include_directories(${ProjectName} PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}
+)
+
+# Pulls in the dependencies
+target_link_libraries(${ProjectName} 
+    hardware_spi
+    hardware_gpio
+    hardware_i2c
+    hardware_timer
+    hardware_watchdog
+    hardware_clocks
+    pico_stdlib 
+    #FreeRTOS-Kernel-Heap4 
+    )
+if (PICO_CYW43_SUPPORTED)
+    target_link_libraries(${ProjectName} pico_cyw43_arch_none)
+endif()
+
+# create map/bin/hex file etc.
+pico_add_extra_outputs(${ProjectName})
