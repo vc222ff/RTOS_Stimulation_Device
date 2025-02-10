@@ -1,0 +1,5 @@
+/home/victor/Programming/2DT304/2dt304-wearable-posture-correction-device/OLD/c_rtos_old/build/elf2uf2/CMakeFiles/elf2uf2.dir
+/home/victor/Programming/2DT304/2dt304-wearable-posture-correction-device/OLD/c_rtos_old/build/elf2uf2/CMakeFiles/edit_cache.dir
+/home/victor/Programming/2DT304/2dt304-wearable-posture-correction-device/OLD/c_rtos_old/build/elf2uf2/CMakeFiles/rebuild_cache.dir
+/home/victor/Programming/2DT304/2dt304-wearable-posture-correction-device/OLD/c_rtos_old/build/elf2uf2/boot_uf2_headers/CMakeFiles/edit_cache.dir
+/home/victor/Programming/2DT304/2dt304-wearable-posture-correction-device/OLD/c_rtos_old/build/elf2uf2/boot_uf2_headers/CMakeFiles/rebuild_cache.dir
