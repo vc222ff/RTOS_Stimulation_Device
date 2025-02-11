@@ -1,3 +1,0 @@
-/home/victor/Programming/2DT304/2dt304-wearable-posture-correction-device/OLD/c_rtos_old/build/pioasm/CMakeFiles/pioasm.dir
-/home/victor/Programming/2DT304/2dt304-wearable-posture-correction-device/OLD/c_rtos_old/build/pioasm/CMakeFiles/edit_cache.dir
-/home/victor/Programming/2DT304/2dt304-wearable-posture-correction-device/OLD/c_rtos_old/build/pioasm/CMakeFiles/rebuild_cache.dir
