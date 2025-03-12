@@ -11,10 +11,10 @@
 #define VIBRATION_MOTOR_PIN1 7 // Vibration motor 1 GPIO
 #define VIBRATION_MOTOR_PIN2 8 // Vibration motor 2 GPIO
 #define I2C_PORT i2c0
-#define MPU1_ADDR 0x68  // First MPU-9250 sensor  (AD0 = GND)
-#define MPU2_ADDR 0x69  // Second MPU-9250 sensor (AD0 = 3.3V)
+#define MPU1_ADDR 0x76  // First MPU-9250 sensor  (AD0 = GND)
+#define MPU2_ADDR 0x76  // Second MPU-9250 sensor (AD0 = 3.3V)
 #define ACCEL_REG 0x3B  // Start register for accelerometer data (6 bytes)
-#define PWR_MGMT_1 0x6b // Power management register 
+#define PWR_MGMT_1 0x6b // Power management register
 
 
 void init_mpu(uint8_t addr) {
@@ -114,12 +114,12 @@ int main() {
     // Initialize the Pico SDK library
     stdio_init_all();
 
-    // Initialize I2C
-    i2c_init(I2C_PORT, 400 * 1000);  // 400kHz I2C speed
-    gpio_set_function(0, GPIO_FUNC_I2C); // SDA (GP0)
-    gpio_set_function(1, GPIO_FUNC_I2C); // SCL (GP1)
-    gpio_pull_up(0);
-    gpio_pull_up(1);
+    // Initialize I2C ports 
+    i2c_init(I2C_PORT, 400 * 1000);  // 400 kHz I2C clock speed
+    gpio_set_function(2, GPIO_FUNC_I2C); // SDA (GP0)
+    gpio_set_function(3, GPIO_FUNC_I2C); // SCL (GP1)
+    gpio_pull_up(2);
+    gpio_pull_up(3);
 
     // Initialize MPU-9250 sensors
     init_mpu(MPU1_ADDR);
