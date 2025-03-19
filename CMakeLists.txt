@@ -2,7 +2,10 @@
 cmake_minimum_required(VERSION 3.13)
 
 # Sets project name
-SET(ProjectName c_rtos)
+SET(ProjectName c_rtos_posture_detection)
+
+# Defines the raspberry board type
+set(PICO_BOARD pico_w)
 
 # Set any variables required for importing libraries
 set(PICO_SDK_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib/pico-sdk)

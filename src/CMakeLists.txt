@@ -6,6 +6,7 @@ add_executable(${ProjectName}
 # Adds standard include files to build.
 target_include_directories(${ProjectName} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
+    ${PICO_SDK_PATH}/lib/btstack/src
 )
 
 # Pulls in the dependencies.
@@ -16,7 +17,9 @@ target_link_libraries(${ProjectName}
     hardware_timer
     hardware_watchdog
     hardware_clocks
-    pico_stdlib 
+    pico_stdlib
+    pico_btstack_ble
+    pico_cyw43_arch_lwip_threadsafe_background
     FreeRTOS-Kernel-Heap4
 )
 

@@ -1,13 +1,9 @@
 // Imports project dependencies.
 #include "FreeRTOS.h"
 #include "task.h"
-#include <stdint.h>
 #include <stdio.h>
-#include "hardware/i2c.h"
 #include "pico/stdlib.h"
-#include "pico/cyw43_arch.h"
-#include "pico/btstack_cyw43.h"
-#include "btstack.h"
+#include "hardware/i2c.h"
 
 
 // 
@@ -27,44 +23,6 @@
 #define MPU_6050_ADDRESS 0x68   // Standard memory adress for MPU_6250 sensors.
 #define ACCEL_REG 0x3B          // Start register for MPU accelerometer data (6 bytes).
 #define PWR_MGMT_REG 0x6b       // MPU_6250 Power management register.
-
-
-// Initializes Bluetooth Low Energy, BLE ___  .   
-void init_ble() {
-    
-    // STILL NEED TO FIX BTSTACK INITIATION SETTINGS FOR RASPBERRY PI PICO
-
-    // btstack_init() provided by the Pico SDK internally handles:
-    // Event loop initialization (btstack_run_loop_init)
-    // HCI initialization (hci_init for Pico W with CYW43)
-    // Powering on Bluetooth module (hci_power_control)
-    //btstack_init();
-
-    //btstack_run_loop_init(btstack_run_loop_cyw43_get_instance());  // correct Pico W run loop
-    //hci_init(hci_transport_cyw43_instance(), NULL);                // correct Pico W HCI
-
-    hci_power_control(HCI_POWER_ON);
-
-
-    // WORKS
-    
-    // // 30-60 ms intervals
-    gap_advertisements_set_params(0x0030, 0x0060, 0, 0, NULL, 0x07, 0x00);
-}
-
-
-//
-void advertise_data(uint8_t *data, size_t length) {
-    
-    //
-    gap_advertisements_set_data(length, data);
-    
-    //
-    gap_advertisements_enable(1);
-    
-    //
-    btstack_run_loop_execute();
-}
 
 
 //
@@ -138,6 +96,7 @@ float convert_to_g(int16_t raw) {
 }
 
 
+
 //
 void posture_monitor_task(void *pvParameters) {
 
@@ -165,17 +124,6 @@ void posture_monitor_task(void *pvParameters) {
         float ax2_g = convert_to_g(ax2);
         float ay2_g = convert_to_g(ay2);
         float az2_g = convert_to_g(az2);
-
-        // 
-        uint8_t adv_data[] = {
-            // Flags: General discoverable, BR/EDR unsupported
-            0x02, 0x01, 0x06, 
-            // Name: "PostureDevice"
-            0x0E, 0x09, 'P','o','s','t','u','r','e','D','e','v','i','c','e'
-        };
-
-        // 
-        advertise_data(adv_data, sizeof(adv_data));
 
         // Print results
         printf("MPU1: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax1_g, ay1_g, az1_g);
@@ -217,16 +165,13 @@ int main() {
 
     // Timer before Auxiliaries (IO) start.
     sleep_ms(3000);
-    
+
     // Initalizes the MPU_6250 sensors. 
     init_mpu(IMU_UPPER_SCL, IMU_UPPER_SDA, IMU_UPPER_VCC, MPU_6050_ADDRESS, IMU_UPPER_I2C_BUS);
     init_mpu(IMU_LOWER_SCL, IMU_LOWER_SDA, IMU_LOWER_VCC, MPU_6050_ADDRESS, IMU_LOWER_I2C_BUS);
 
     // Initalizes the vibration motor. 
     init_motor(VIBRATION_MOTOR_VCC);
-
-    //
-    init_ble();
 
     // Creates a FreeRTOS task for posture monitoring. 
     xTaskCreate(posture_monitor_task, "PostureMonitor", 1024, NULL, 1, NULL);
