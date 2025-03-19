@@ -1,20 +1,91 @@
 # 2DT304 - Wearable Posture Correction Device
-Members: Victor Cajfeldt <br>
+Members: Victor Cajfeldt<br>
 Program: Computer Engineering<br>
 Course: 2DT304<br>
-Date of latest submission: 2025-??-??<br>
-<br>
-This README document is divided into three sections: Compilation of java files, how to start the TFTP server and the PDF report for the project.
+Date of latest submission: 2025-03-28<br>
 
+<br>
+
+This README document is divided into three sections: ??? Compilation of java files ???, how to start the TFTP server and the PDF report for the project.
 
 ## Instructions for the device
 
-**Table of contents:** <br>
-[**1. ????**](#???) <br> 
-[**2. ????**](#???) <br> 
-[**3. ????**](#???) <br>
+**Table of contents:**<br>
+[**1. ????**](#???)<br> 
+[**2. ????**](#???)<br> 
+[**3. ????**](#???)<br>
 
-
+*????? ????? ????? ?????*
+```ascii
+.
+├── build
+│   ├── CMakeCache.txt
+│   ├── CMakeFiles
+│   ├── cmake_install.cmake
+│   ├── compile_commands.json
+│   ├── elf2uf2
+│   ├── FREERTOS_KERNEL
+│   ├── generated
+│   ├── Makefile
+│   ├── pico-sdk
+│   ├── pioasm
+│   └── src
+├── CMakeLists.txt
+├── c_tests
+│   └── I2Ctest.c
+├── doc
+│   ├── img
+│   ├── Midterm Presentation.pdf
+│   └── pi-pico-w-datasheet.pdf
+├── lib
+│   ├── FreeRTOS-Kernel
+│   └── pico-sdk
+├── LICENSE
+├── micropython_tests
+│   ├── ble_advertising.py
+│   ├── ble_uart_peripheral.py
+│   ├── Bluetooth_debug.py
+│   ├── I2C_loop_test.py
+│   ├── I2C_scan.py
+│   ├── MicroPythonMain.py
+│   ├── PiicoDev_MPU6050.py
+│   ├── PiicoDev.py
+│   └── PiicoDev_Unified.py
+├── pico_sdk_import.cmake
+├── react_app
+│   ├── app
+│   ├── app.json
+│   ├── assets
+│   ├── components
+│   ├── constants
+│   ├── expo-env.d.ts
+│   ├── node_modules
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── patches
+│   ├── services
+│   └── tsconfig.json
+├── README.md
+└── src
+    ├── CMakeLists.txt
+    ├── FreeRTOSConfig.h
+    ├── main2.c
+    └── main.c
+```
+```ascii
+.
+├── build
+├── CMakeLists.txt
+├── c_tests
+├── doc
+├── lib
+├── LICENSE
+├── micropython_tests
+├── pico_sdk_import.cmake
+├── react_app
+├── README.md
+└── src
+```
 
 <br><br><br><br><br>
 
@@ -52,19 +123,60 @@ This command compiles the main class "TFTPServer" and places it in bin/ folder r
 
 *Directory structure after compilation:*
 ```ascii
-└── assignment3/
-    ├── bin/
-    │   ├── TFTPServer.class
-    │   └── TFTPServer$1.class
-    ├── img/
-    ├── public/
-    │   ├── read/
-    │   └── write/
-    ├── src/
-    │   └── TFTPServer.java
-    ├── README.md
-    ├── test_tftp.py
-    └── tftpclient.py
+.
+├── build
+│   ├── CMakeCache.txt
+│   ├── CMakeFiles
+│   ├── cmake_install.cmake
+│   ├── compile_commands.json
+│   ├── elf2uf2
+│   ├── FREERTOS_KERNEL
+│   ├── generated
+│   ├── Makefile
+│   ├── pico-sdk
+│   ├── pioasm
+│   └── src
+├── CMakeLists.txt
+├── c_tests
+│   └── I2Ctest.c
+├── doc
+│   ├── img
+│   ├── Midterm Presentation.pdf
+│   └── pi-pico-w-datasheet.pdf
+├── lib
+│   ├── FreeRTOS-Kernel
+│   └── pico-sdk
+├── LICENSE
+├── micropython_tests
+│   ├── ble_advertising.py
+│   ├── ble_uart_peripheral.py
+│   ├── Bluetooth_debug.py
+│   ├── I2C_loop_test.py
+│   ├── I2C_scan.py
+│   ├── MicroPythonMain.py
+│   ├── PiicoDev_MPU6050.py
+│   ├── PiicoDev.py
+│   └── PiicoDev_Unified.py
+├── pico_sdk_import.cmake
+├── react_app
+│   ├── app
+│   ├── app.json
+│   ├── assets
+│   ├── components
+│   ├── constants
+│   ├── expo-env.d.ts
+│   ├── node_modules
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── patches
+│   ├── services
+│   └── tsconfig.json
+├── README.md
+└── src
+    ├── CMakeLists.txt
+    ├── FreeRTOSConfig.h
+    ├── main2.c
+    └── main.c
 ```
 After compiling the .java files your project directory will resemble the following structure.
 
