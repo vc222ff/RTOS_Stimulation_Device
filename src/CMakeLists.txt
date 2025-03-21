@@ -1,6 +1,6 @@
 # Adds project executables.
 add_executable(${ProjectName}
-    main.c server_common.c
+    main.c ble_server.c
 )
 
 # Adds standard include files to build.
@@ -25,11 +25,10 @@ target_link_libraries(${ProjectName}
     FreeRTOS-Kernel-Heap4
 )
 
-# Creates a .gatt header file for BLE service.
+# _______ a .gatt header file for BLE service.
 pico_btstack_make_gatt_header(${ProjectName} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/temp_sensor.gatt")
-#pico_btstack_make_gatt_header(picow_ble_temp_sensor PRIVATE "${CMAKE_CURRENT_LIST_DIR}/${ProjectName}.gatt")
 
-# Modify the below lines to enable/disable output over UART/USB
+# Modify the below lines to enable/disable output over UART/USB.
 pico_enable_stdio_uart(${ProjectName} 0)
 pico_enable_stdio_usb(${ProjectName} 1)
 

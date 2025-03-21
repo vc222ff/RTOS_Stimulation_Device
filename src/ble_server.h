@@ -4,11 +4,9 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
- #ifndef SERVER_COMMON_H_
- #define SERVER_COMMON_H_
- 
- #define ADC_CHANNEL_TEMPSENSOR 4
- 
+ #ifndef BLE_SERVER_H_
+ #define BLE_SERVER_H_
+  
  extern int le_notification_enabled;
  extern hci_con_handle_t con_handle;
  extern uint16_t current_temp;

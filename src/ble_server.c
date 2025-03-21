@@ -4,30 +4,33 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+ // Imports dependencies.
  #include <stdio.h>
- #include "btstack.h"
+ #include <btstack.h>
  
+ // Imports header files.
  #include "temp_sensor.h"
- #include "server_common.h"
+ #include "ble_server.h"
  
-
+ 
+ // Declares preprocessor macro. 
  #define APP_AD_FLAGS 0x06
 
-
+ // Global variables.
  static uint8_t adv_data[] = {
-     // Flags general discoverable
-     0x02, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS,
-     // Name
-     0x17, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME, 'P', 'i', 'c', 'o', ' ', '0', '0', ':', '0', '0', ':', '0', '0', ':', '0', '0', ':', '0', '0', ':', '0', '0',
+     0x02, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS,                     // Flags: General Discoverable.
+     0x17, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,                     // Device Name.
+     'P', 'i', 'c', 'o', ' ', '0', '0', ':', '0', '0', ':', 
+     '0', '0', ':', '0', '0', ':', '0', '0', ':', '0', '0',
      0x03, BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS, 0x1a, 0x18,
  };
- static const uint8_t adv_data_len = sizeof(adv_data);
- 
- int le_notification_enabled;
- hci_con_handle_t con_handle;
- uint16_t current_temp;
+ static const uint8_t adv_data_len = sizeof(adv_data);                  // Advertisement data length.
+ int le_notification_enabled;                                           // Bluetooth Low-Energi enabled boolean.
+ hci_con_handle_t con_handle;                                           // 
+ uint16_t current_temp;                                                 // Current temperature.
  
 
+ // Packet handler function.
  void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
      UNUSED(size);
      UNUSED(channel);
@@ -67,6 +70,8 @@
      }
  }
  
+
+ // BLE read callback function.
  uint16_t att_read_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t offset, uint8_t * buffer, uint16_t buffer_size) {
      UNUSED(connection_handle);
  
@@ -76,6 +81,8 @@
      return 0;
  }
  
+
+// BLE write callback function. 
  int att_write_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t transaction_mode, uint16_t offset, uint8_t *buffer, uint16_t buffer_size) {
      UNUSED(transaction_mode);
      UNUSED(offset);
