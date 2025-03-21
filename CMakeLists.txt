@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.13)
 
 # Sets project name
-SET(ProjectName c_rtos_posture_detection)
+SET(ProjectName c_rtos_posture)
 
 # Defines the raspberry board type
 set(PICO_BOARD pico_w)

@@ -9,8 +9,10 @@
 #include "pico/btstack_cyw43.h"
 #include "btstack.h"
 
+#include "server_common.h"
 
-// 
+
+//
 #define VIBRATION_MOTOR_VCC 21  // Vibration motor GPIO pin.
 #define IMU_UPPER_VCC 14        // Power (VCC) pin for upper sensor.
 #define IMU_LOWER_VCC 1         // Power pin for lower sensor.
@@ -29,9 +31,65 @@
 #define PWR_MGMT_REG 0x6b       // MPU_6250 Power management register.
 
 
+
+static btstack_timer_source_t heartbeat;
+static btstack_packet_callback_registration_t hci_event_callback_registration;
+
+
+static void heartbeat_handler(struct btstack_timer_source *ts) {
+    static uint32_t counter = 0;
+    counter++;
+
+    // Update the "TEMP" every 3 seconds
+    if (counter % 10 == 0) {
+        float deg_c = 27.0f - 16384.0f;
+        current_temp = (uint16_t) 27;
+        printf("Write temp %.2f degc\n", deg_c);
+        //call to func.
+        if (le_notification_enabled) {
+            att_server_request_can_send_now_event(con_handle);
+        }
+    }
+
+    // Invert the LED
+    static int led_on = true;
+    led_on = !led_on;
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
+
+    // Restart timer
+    btstack_run_loop_set_timer(ts, 1000);
+    btstack_run_loop_add_timer(ts);
+}
+
 // Initializes Bluetooth Low Energy, BLE ___  .   
 void init_ble() {
     
+    att_server_init(profile_data, att_read_callback, att_write_callback);
+
+    // inform about BTstack state
+    hci_event_callback_registration.callback = &packet_handler;
+    hci_add_event_handler(&hci_event_callback_registration);
+
+    // register for ATT event
+    att_server_register_packet_handler(packet_handler);
+
+    // setup heartbeat
+    heartbeat.process = &heartbeat_handler;
+    btstack_run_loop_set_timer(&heartbeat, 1000);
+    btstack_run_loop_add_timer(&heartbeat);
+
+    // turn on bluetooth!
+    hci_power_control(HCI_POWER_ON);
+
+
+    #if 0
+    btstack_run_loop_execute();
+    #else
+        while(true) {
+            sleep_ms(1000);
+        }
+    #endif
+
     // STILL NEED TO FIX BTSTACK INITIATION SETTINGS FOR RASPBERRY PI PICO
 
     // btstack_init() provided by the Pico SDK internally handles:
@@ -43,13 +101,20 @@ void init_ble() {
     //btstack_run_loop_init(btstack_run_loop_cyw43_get_instance());  // correct Pico W run loop
     //hci_init(hci_transport_cyw43_instance(), NULL);                // correct Pico W HCI
 
-    hci_power_control(HCI_POWER_ON);
+    //hci_power_control(HCI_POWER_ON);
 
 
-    // WORKS
     
-    // // 30-60 ms intervals
-    gap_advertisements_set_params(0x0030, 0x0060, 0, 0, NULL, 0x07, 0x00);
+    // // 800 ms intervals
+    //uint16_t adv_i_min = 30;
+    //uint16_t adv_i_max = 30;
+    //uint8_t adv_type = 0;
+    //bd_addr_t null_addr;        // Or just NULL
+    //memset(null_addr, 0, 6);
+    //
+    //gap_advertisements_set_params(adv_i_min, adv_i_max, adv_type, 0, null_addr, 0x07, 0x00);
+
+   
 }
 
 
@@ -57,13 +122,16 @@ void init_ble() {
 void advertise_data(uint8_t *data, size_t length) {
     
     //
-    gap_advertisements_set_data(length, data);
+    assert(length <= 31); // BLE limitation.
+
+    //
+    //gap_advertisements_set_data(length, data);
     
     //
-    gap_advertisements_enable(1);
+    //gap_advertisements_enable(1);
+
     
-    //
-    btstack_run_loop_execute();
+    
 }
 
 
@@ -167,15 +235,16 @@ void posture_monitor_task(void *pvParameters) {
         float az2_g = convert_to_g(az2);
 
         // 
-        uint8_t adv_data[] = {
-            // Flags: General discoverable, BR/EDR unsupported
-            0x02, 0x01, 0x06, 
-            // Name: "PostureDevice"
-            0x0E, 0x09, 'P','o','s','t','u','r','e','D','e','v','i','c','e'
-        };
-
-        // 
-        advertise_data(adv_data, sizeof(adv_data));
+        //uint8_t adv_data[] = {
+        //    // Flags: General discoverable
+        //    0x02, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS, 
+        //    // BLE Device Name
+        //    0x17, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME, 'P','i','c','o','P','o','s','t','u','r','e',
+        //    //0x03, BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS, 0x1a, 0x18,
+        //};
+        //
+        //// 
+        //advertise_data(adv_data, sizeof(adv_data));
 
         // Print results
         printf("MPU1: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax1_g, ay1_g, az1_g);
@@ -208,7 +277,7 @@ void posture_monitor_task(void *pvParameters) {
 // Entry point program.
 int main() {
     
-    // Initializes the Pico SDK library.
+    // Initializes the standard C library.
     stdio_init_all();
     
     // Iniitalizes the I2C communication buses.
@@ -226,6 +295,9 @@ int main() {
     init_motor(VIBRATION_MOTOR_VCC);
 
     //
+    cyw43_arch_init();
+    l2cap_init();           // move into function.
+    sm_init();
     init_ble();
 
     // Creates a FreeRTOS task for posture monitoring. 

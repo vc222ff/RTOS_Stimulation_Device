@@ -1,6 +1,6 @@
 # Adds project executables.
 add_executable(${ProjectName}
-    main.c
+    main.c server_common.c
 )
 
 # Adds standard include files to build.
@@ -19,13 +19,15 @@ target_link_libraries(${ProjectName}
     hardware_clocks
     pico_stdlib
     pico_btstack_ble
+    pico_btstack_cyw43
+    pico_cyw43_arch_none
     pico_cyw43_arch_lwip_threadsafe_background
     FreeRTOS-Kernel-Heap4
 )
 
-if (PICO_CYW43_SUPPORTED)
-    target_link_libraries(${ProjectName} pico_cyw43_arch_none)
-endif()
+# Creates a .gatt header file for BLE service.
+pico_btstack_make_gatt_header(${ProjectName} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/temp_sensor.gatt")
+#pico_btstack_make_gatt_header(picow_ble_temp_sensor PRIVATE "${CMAKE_CURRENT_LIST_DIR}/${ProjectName}.gatt")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(${ProjectName} 0)
