@@ -27,11 +27,11 @@
 #define IMU_LOWER_I2C_BUS i2c1          // I2C comminication bus for lower sensor.
 #define I2C_CLOCK_SPEED 400000          // I2C communication bus speed.
 
-#define MPU_6250_ADDRESS 0x68           // Standard memory adress for MPU_6250 sensors.
+#define MPU_6050_ADDRESS 0x68           // Standard memory adress for MPU_6050 sensors.
 #define ACCEL_REG 0x3B                  // Start register for MPU accelerometer data (6 bytes).
 #define GYRO_REG 0x43                   // Start register for MPU gyroscopic data (6 bytes).
 #define TEMP_REG 0x41                   // Start register for MPU temperature data (2 bytes).
-#define PWR_MGMT_REG 0x6b               // MPU_6250 Power management register.
+#define PWR_MGMT_REG 0x6b               // MPU_6050 Power management register.
 
 
 // Global variables.
@@ -41,7 +41,7 @@ static int16_t temperature_1, temperature_2;                                    
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;  // Structure for handling HCI events.
 static btstack_timer_source_t ble_notify_timer;                                 // BTstack software timer for notifications.
-static const int notify_delay = 3000;                                           // Delay between BLE notifications.
+static const int ble_notify_delay = 3000;                                       // Delay between the notifications.
 
 
 // Handles timed updating of BLE payload and advertisement.
@@ -63,7 +63,7 @@ static void ble_handler(struct btstack_timer_source *ts) {
     }
 
     // Restarts BTstack timer for callback to the BLE handler.
-    btstack_run_loop_set_timer(ts, 3000);
+    btstack_run_loop_set_timer(ts, ble_notify_delay);
     btstack_run_loop_add_timer(ts);
 }
 
@@ -88,15 +88,15 @@ static void init_ble() {
 
     // Sets up periodic timer for BLE callback.
     ble_notify_timer.process = &ble_handler;
-    btstack_run_loop_set_timer(&ble_notify_timer, 3000);
+    btstack_run_loop_set_timer(&ble_notify_timer, ble_notify_delay);
     btstack_run_loop_add_timer(&ble_notify_timer);
-    
+
     // Powers on the bluetooth stack.
     hci_power_control(HCI_POWER_ON);
 }
 
 
-// Initiates pins, I2C communication and power for MPU_6250 sensor.
+// Initiates pins, I2C communication and power for MPU_6050 sensor.
 static void init_mpu(i2c_inst_t *bus, uint8_t addr, uint8_t SCL, uint8_t SDA, uint8_t VCC) {
     
     // Sets pins to function as I2C communication pins.
@@ -124,7 +124,7 @@ static void init_mpu(i2c_inst_t *bus, uint8_t addr, uint8_t SCL, uint8_t SDA, ui
 }
 
 
-// Retrieves accelerometer I2C data from MPU_6250 sensor.
+// Retrieves accelerometer I2C data from MPU_6050 sensor.
 static void read_accelerometer(i2c_inst_t *bus ,uint8_t addr, int16_t accel[3]) {
     
     // Instances a register variable with memory location.
@@ -144,7 +144,7 @@ static void read_accelerometer(i2c_inst_t *bus ,uint8_t addr, int16_t accel[3]) 
 }
 
 
-// Retrieves gyroscopic I2C data from MPU_6250 sensor.
+// Retrieves gyroscopic I2C data from MPU_6050 sensor.
 static void read_gyroscope(i2c_inst_t *bus ,uint8_t addr, int16_t gyro[3]) {
     
     // Instances a register variable with memory location.
@@ -164,7 +164,7 @@ static void read_gyroscope(i2c_inst_t *bus ,uint8_t addr, int16_t gyro[3]) {
 }
 
 
-// Retrieves temperature I2C data from MPU_6250 sensor.
+// Retrieves temperature I2C data from MPU_6050 sensor.
 static void read_temperature(i2c_inst_t *bus ,uint8_t addr, int16_t *temp) {
     
     // Instances a register variable with memory location.
@@ -232,16 +232,16 @@ static void posture_monitor_task(void *pvParameters) {
         led_on = !led_on;
 
         // Retrieves accelerometer readings from both sensors.
-        read_accelerometer(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, acceleration_1);
-        read_accelerometer(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, acceleration_2);
+        read_accelerometer(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, acceleration_1);
+        read_accelerometer(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, acceleration_2);
 
         // Retrieves gyroscopic readings from both sensors.
-        read_gyroscope(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, gyroscope_1);
-        read_gyroscope(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, gyroscope_2);
+        read_gyroscope(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, gyroscope_1);
+        read_gyroscope(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, gyroscope_2);
 
         // Retrieves temperature readings from both sensors.
-        read_temperature(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, &temperature_1);
-        read_temperature(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, &temperature_2);
+        read_temperature(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, &temperature_1);
+        read_temperature(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, &temperature_2);
 
         // Vibrates the onboard motor.
         vibrate_motor(VIBRATION_MOTOR_VCC);
@@ -290,9 +290,9 @@ static int main() {
     // Timer before Auxiliaries (IO) start.
     sleep_ms(3000);
     
-    // Initalizes the MPU_6250 sensors. 
-    init_mpu(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, IMU_UPPER_SCL, IMU_UPPER_SDA, IMU_UPPER_VCC);
-    init_mpu(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, IMU_LOWER_SCL, IMU_LOWER_SDA, IMU_LOWER_VCC);
+    // Initalizes the MPU_6050 sensors. 
+    init_mpu(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, IMU_UPPER_SCL, IMU_UPPER_SDA, IMU_UPPER_VCC);
+    init_mpu(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, IMU_LOWER_SCL, IMU_LOWER_SDA, IMU_LOWER_VCC);
 
     // Initalizes the vibration motor. 
     init_motor(VIBRATION_MOTOR_VCC);

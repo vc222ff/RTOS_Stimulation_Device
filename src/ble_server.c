@@ -12,19 +12,22 @@
 #include "posture_monitor.h"
 #include "ble_server.h"
 
-// Declares preprocessor macro. 
+// Declares preprocessor macros.
 #define APP_AD_FLAGS 0x06
 
 // Global variables.
-int le_notification_enabled;                                           // Bluetooth Low-Energi enabled boolean.
-hci_con_handle_t con_handle;                                           // 
+int le_notification_enabled;                                           // BLE client notification flag.
+hci_con_handle_t con_handle;                                           // The HCI/BL connection handle.
+
 char data_payload[PAYLOAD_LENGTH];                                     // Outgoing string array with data payload.
-static uint8_t adv_data[] = {                                          // 
-    0x02, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS,                          // Flags: General Discoverable.
-    0x17, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,                          // Device Name.
-    'P', 'i', 'c', 'o', ' ', '0', '0', ':', '0', '0', ':', 
-    '0', '0', ':', '0', '0', ':', '0', '0', ':', '0', '0',
-    0x03, BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS, 0x1a, 0x18,
+
+static uint8_t adv_data[] = {                                          // BLE advertisement payload:
+    0x02, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS,                                      // Flags: General Discoverable.
+    0x17, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,                                      // Device Name.
+    'P', 'i', 'c', 'o', ' ', '0', '0', ':', '0', '0', ':',                              // -||-
+    '0', '0', ':', '0', '0', ':', '0', '0', ':', '0', '0',                              // -||-
+    0x03, BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS,              // UUIDs services.
+    0x1a, 0x18,                                                                         // -||-
 };
 static const uint8_t adv_data_len = sizeof(adv_data);                  // Advertisement data length.
 
