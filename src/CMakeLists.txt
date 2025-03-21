@@ -26,8 +26,8 @@ target_link_libraries(${ProjectName}
     FreeRTOS-Kernel-Heap4
 )
 
-# _______ a .gatt header file for BLE service.
-pico_btstack_make_gatt_header(${ProjectName} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/temp_sensor.gatt")
+# Generates a .h header file from GATT file for BLE service.
+pico_btstack_make_gatt_header(${ProjectName} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/posture_monitor.gatt")
 
 # Modify the below lines to enable/disable output over UART/USB.
 pico_enable_stdio_uart(${ProjectName} 0)

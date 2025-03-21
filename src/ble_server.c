@@ -9,7 +9,7 @@
 #include <btstack.h>
 
 // Imports header files.
-#include "temp_sensor.h"
+#include "posture_monitor.h"
 #include "ble_server.h"
 
 // Declares preprocessor macro. 

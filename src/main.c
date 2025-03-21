@@ -35,15 +35,15 @@
 
 
 // Global variables.
-static btstack_timer_source_t heartbeat;
-static btstack_packet_callback_registration_t hci_event_callback_registration;
+static btstack_timer_source_t ble_notify_timer;
+static btstack_packet_callback_registration_t hci_event_callback_registration
 
 int16_t acceleration_1[3], acceleration_2[3];
 int16_t gyroscope_1[3], gyroscope_2[3];
 int16_t temperature_1, temperature_2;
 
 
-// ____ ____ .      // ORIGINALLY (heartbeat_handler() in server.c)
+// Handles timed updating of BLE payload and advertisement.
 static void ble_handler(struct btstack_timer_source *ts) {
    
     // Updates content of BLE data payload string.
@@ -67,7 +67,7 @@ static void ble_handler(struct btstack_timer_source *ts) {
 }
 
                
-// Initializes Bluetooth Low Energy, BLE component and related wireless protocols.
+// Initializes Bluetooth Low Energy BLE component and related wireless protocols.
 void init_ble() {
     
     // Initializes BL stack, L2cap layer and BL Security Manager.
@@ -75,7 +75,7 @@ void init_ble() {
     l2cap_init();
     sm_init();
 
-    //
+    // 
     att_server_init(profile_data, att_read_callback, att_write_callback);
 
     // inform about BTstack state
@@ -85,10 +85,10 @@ void init_ble() {
     // register for ATT event
     att_server_register_packet_handler(packet_handler);
 
-    // setup heartbeat
-    heartbeat.process = &ble_handler;
-    btstack_run_loop_set_timer(&heartbeat, 3000);
-    btstack_run_loop_add_timer(&heartbeat);
+    // setup 
+    ble_notify_timer.process = &ble_handler;
+    btstack_run_loop_set_timer(&ble_notify_timer, 3000);
+    btstack_run_loop_add_timer(&ble_notify_timer);
 
     // Powers on the bluetooth.
     hci_power_control(HCI_POWER_ON);
@@ -223,7 +223,7 @@ void posture_monitor_task(void *pvParameters) {
     // Boolean variable for toggling onboard LED.
     static int led_on = true;
 
-    // 
+    // While-true statement.
     while(1) {
 
         // Inverts the onboard LED to show processing.
