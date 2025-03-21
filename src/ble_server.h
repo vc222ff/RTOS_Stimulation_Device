@@ -8,7 +8,7 @@
 #define BLE_SERVER_H_
 
 // Declares string buffer size for BLE message payload.
-#define PAYLOAD_LENGTH 100
+#define PAYLOAD_LENGTH 256
  
 //
 extern int le_notification_enabled;
