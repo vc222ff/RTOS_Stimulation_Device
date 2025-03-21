@@ -12,7 +12,7 @@
  #include "temp_sensor.h"
  #include "ble_server.h"
  
- 
+
  // Declares preprocessor macro. 
  #define APP_AD_FLAGS 0x06
 
@@ -28,7 +28,9 @@
  int le_notification_enabled;                                           // Bluetooth Low-Energi enabled boolean.
  hci_con_handle_t con_handle;                                           // 
  uint16_t current_temp;                                                 // Current temperature.
- 
+
+ char accel_string[ACCEL_STR_LEN];
+
 
  // Packet handler function.
  void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
@@ -44,14 +46,14 @@
              gap_local_bd_addr(local_addr);
              printf("BTstack up and running on %s.\n", bd_addr_to_str(local_addr));
  
-             // setup advertisements
-             uint16_t adv_int_min = 800;
-             uint16_t adv_int_max = 800;
-             uint8_t adv_type = 0;
+             // Settings for BLE advertisements.
+             uint16_t adv_int_min = 800;            // Min interval period.
+             uint16_t adv_int_max = 800;            // Max interval period.
+             uint8_t adv_type = 0;                  // Advertisement type.
              bd_addr_t null_addr;
              memset(null_addr, 0, 6);
              gap_advertisements_set_params(adv_int_min, adv_int_max, adv_type, 0, null_addr, 0x07, 0x00);
-             assert(adv_data_len <= 31); // ble limitation
+             assert(adv_data_len <= 31);            // BLE limitation.
              gap_advertisements_set_data(adv_data_len, (uint8_t*) adv_data);
              gap_advertisements_enable(1);
  
@@ -62,7 +64,7 @@
              break;
 
          case ATT_EVENT_CAN_SEND_NOW:
-             att_server_notify(con_handle, ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE, (uint8_t*)&current_temp, sizeof(current_temp));
+             att_server_notify(con_handle, ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE, (uint8_t*)accel_string, sizeof(accel_string));
              break;
 
          default:
@@ -76,7 +78,7 @@
      UNUSED(connection_handle);
  
      if (att_handle == ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE){
-         return att_read_callback_handle_blob((const uint8_t *)&current_temp, sizeof(current_temp), offset, buffer, buffer_size);
+         return att_read_callback_handle_blob((const uint8_t *)accel_string, sizeof(accel_string), offset, buffer, buffer_size);
      }
      return 0;
  }

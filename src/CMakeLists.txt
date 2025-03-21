@@ -18,6 +18,7 @@ target_link_libraries(${ProjectName}
     hardware_watchdog
     hardware_clocks
     pico_stdlib
+    pico_stdio_usb
     pico_btstack_ble
     pico_btstack_cyw43
     pico_cyw43_arch_none

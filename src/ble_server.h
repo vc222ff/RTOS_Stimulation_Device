@@ -6,10 +6,14 @@
 
  #ifndef BLE_SERVER_H_
  #define BLE_SERVER_H_
-  
+
+ // Declares string buffer size for BLE message.
+ #define ACCEL_STR_LEN 100
+
  extern int le_notification_enabled;
  extern hci_con_handle_t con_handle;
  extern uint16_t current_temp;
+ extern char accel_string[ACCEL_STR_LEN];     // UTF-8 encoded string of accelerometer readings.  
  extern uint8_t const profile_data[];
  
  void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size);

@@ -18,10 +18,10 @@
 #define IMU_UPPER_VCC 14                // Power (VCC) pin for upper sensor.
 #define IMU_LOWER_VCC 1                 // Power pin for lower sensor.
 
-#define IMU_UPPER_SCL 13                // SCL GPIO connection for upper sensor.
 #define IMU_UPPER_SDA 12                // SDA GPIO connection for upper sensor. 
-#define IMU_LOWER_SCL 3                 // SCL GPIO connection for lower sensor.
+#define IMU_UPPER_SCL 13                // SCL GPIO connection for upper sensor.
 #define IMU_LOWER_SDA 2                 // SDA GPIO connection for lower sensor.
+#define IMU_LOWER_SCL 3                 // SCL GPIO connection for lower sensor.
 
 #define IMU_UPPER_I2C_BUS i2c0          // I2C communication bus for upper sensor.
 #define IMU_LOWER_I2C_BUS i2c1          // I2C comminication bus for lower sensor.
@@ -36,34 +36,60 @@
 static btstack_timer_source_t heartbeat;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 
+int16_t acceleration_1[3], acceleration_2[3];
+int16_t gyro_1[3], gyro_2[3];
+int16_t temperature;
+
+
+volatile float ax1_g, ay1_g, az1_g, ax2_g, ay2_g, az2_g;
+
 
 // ____ ____ .      // ORIGINALLY (heartbeat_handler() in server.c)
-static void heartbeat_handler(struct btstack_timer_source *ts) {
+static void ble_handler(struct btstack_timer_source *ts) {
     static uint32_t counter = 0;
     counter++;
+    
+    // can remove this
+    if (counter < 30) goto restart_timer;
+
 
     // Update the "TEMP" every 3 seconds
     if (counter % 3 == 0) {
-        float deg_c = 27.0f - 16384.0f;
-        current_temp = (uint16_t) 27;
-        printf("Write temp %.2f degc\n", deg_c);
+        
+        //float ax = 0.12f, ay = -9.81f, az = 1.23f;
+        // Data in g-forces
+        //snprintf(accel_string, ACCEL_STR_LEN, 
+        //    "X1:%.3f | Y:%.3f | Z:%.3f\nX2:%.3f | Y2:%.3f | Z2: %.3f", 
+        //    ax1_g, ay1_g, az1_g, ax2_g, ay2_g, az2_g);
+        
+        //printf("X1:%.3f | Y:%.3f | Z:%.3f\nX2:%.3f | Y2:%.3f | Z2: %.3f", 
+        //    ax1_g, ay1_g, az1_g, ax2_g, ay2_g, az2_g);
+
+        ax1_g = convert_to_g(ax1);
+        ay1_g = convert_to_g(ay1);
+        az1_g = convert_to_g(az1);
+        ax2_g = convert_to_g(ax2);
+        ay2_g = convert_to_g(ay2);
+        az2_g = convert_to_g(az2);
+
+        // Real data type
+        // int16_t ax1 = 120, ay1 = -981, az1 = 123;
+        
+        snprintf(accel_string, sizeof(accel_string), "Acc. X = %d, Y = %d, Z = %d", acc_1[0], acc_1[2], acc_1[2]);
+        
         if (le_notification_enabled) {
             att_server_request_can_send_now_event(con_handle);
         }
     }
 
-    // Invert the LED
-    static int led_on = true;
-    led_on = !led_on;
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
 
+    restart_timer:
     // Restart timer
     btstack_run_loop_set_timer(ts, 1000);
     btstack_run_loop_add_timer(ts);
 }
 
-
-                        
+               
 // Initializes Bluetooth Low Energy, BLE ___  .     // ORIGINALLY (main() in server.c)
 void init_ble() {
     
@@ -83,7 +109,7 @@ void init_ble() {
     att_server_register_packet_handler(packet_handler);
 
     // setup heartbeat
-    heartbeat.process = &heartbeat_handler;
+    heartbeat.process = &ble_handler;
     btstack_run_loop_set_timer(&heartbeat, 1000);
     btstack_run_loop_add_timer(&heartbeat);
 
@@ -93,44 +119,50 @@ void init_ble() {
 
 
 // Initiates pins, I2C communication and power for MPU_6250 sensor.
-void init_mpu(uint8_t SCL, uint8_t SDA, uint8_t VCC, uint8_t addr, i2c_inst_t *bus) {
+void init_mpu(i2c_inst_t *bus, uint8_t addr, uint8_t SCL, uint8_t SDA, uint8_t VCC) {
     
     // Sets pins to function as I2C communication pins.
-    gpio_set_function(SCL, GPIO_FUNC_I2C);
     gpio_set_function(SDA, GPIO_FUNC_I2C);
+    gpio_set_function(SCL, GPIO_FUNC_I2C);
     
     // Enables built-in pull-up resistors (50 kΩ) on pins. 
-    gpio_pull_up(SCL);
     gpio_pull_up(SDA);
-
+    gpio_pull_up(SCL);
+    
     // Enables 3.3V current to the power VCC pin.
     gpio_init(VCC);
     gpio_set_dir(VCC, GPIO_OUT);
     gpio_put(VCC, 1);
 
-    // Writes 0x00 data to PWR_MGNT_REG to turn on sensor device.
-    uint8_t buf[2] = {PWR_MGMT_REG, 0x00};
+    // Writes 0x80 data to PWR_MGNT_REG register to reset device. 
+    uint8_t buf[] = {PWR_MGMT_REG, 0x80};
     i2c_write_blocking(bus, addr, buf, 2, false);
+    sleep_ms(100);
+
+    // Writes 0x00 data to PWR_MGNT_REG register to turn on sensor device.
+    buf[1] = 0x00;
+    i2c_write_blocking(bus, addr, buf, 2, false);
+    sleep_ms(10);
 }
 
 
 // Retrieves accelerometer I2C data from MPU_6250 sensor.
-void read_accelerometer(uint8_t addr, i2c_inst_t *bus, int16_t *ax, int16_t *ay, int16_t *az) {
+void read_accelerometer(i2c_inst_t *bus ,uint8_t addr, int16_t accel[3]) {
     
     // Instances a register variable with memory location.
-    uint8_t reg = ACCEL_REG;
+    uint8_t reg = ACCEL_REG;  // 0x3B register.
     
     // Instances a buffer for storing accelerometer readings.
-    uint8_t buffer[6];
+    uint8_t buffer[6];       // Reads 6 bytes from register.
 
     // Requests and reads 6 bytes from acceelerometer register.
     i2c_write_blocking(bus, addr, &reg, 1, true);
     i2c_read_blocking(bus, addr, buffer , 6, false);
 
-    // Combines reading high and low bytes.
-    *ax = (buffer[0] << 8) | buffer[1]; 
-    *ay = (buffer[2] << 8) | buffer[3];
-    *az = (buffer[4] << 8) | buffer[5];
+    // Reads 2 bytes 3 times and writes acceleration values to array.
+    for (int i = 0; i < 3; i++) {
+        accel[i] = (buffer[i * 2] << 8 | buffer[(i * 2) + 1]);
+    }
 }
 
 
@@ -177,41 +209,48 @@ void posture_monitor_task(void *pvParameters) {
     while(1) {
 
         // Instances coordinate variables.
-        int16_t ax1, ay1, az1, ax2, ay2, az2;
+        //int16_t ax1, ay1, az1, ax2, ay2, az2;
 
         // Retrieves readings from both sensors.
-        read_accelerometer(MPU_6250_ADDRESS, IMU_UPPER_I2C_BUS, &ax1, &ay1, &az1);
-        read_accelerometer(MPU_6250_ADDRESS, IMU_LOWER_I2C_BUS, &ax2, &ay2, &az2);
+        read_accelerometer(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, acc_1);
+        read_accelerometer(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, acc_2);
 
         // Converts float values to g-forces.
-        float ax1_g = convert_to_g(ax1);
-        float ay1_g = convert_to_g(ay1);
-        float az1_g = convert_to_g(az1);
-        float ax2_g = convert_to_g(ax2);
-        float ay2_g = convert_to_g(ay2);
-        float az2_g = convert_to_g(az2);
+        //ax1_g = convert_to_g(ax1);
+        //ay1_g = convert_to_g(ay1);
+        //az1_g = convert_to_g(az1);
+        //ax2_g = convert_to_g(ax2);
+        //ay2_g = convert_to_g(ay2);
+        //az2_g = convert_to_g(az2);
+
+        // Invert the LED
+        static int led_on = true;
+        led_on = !led_on;
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
 
         // Prints results.
-        printf("MPU1: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax1_g, ay1_g, az1_g);
-        printf("MPU2: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax2_g, ay2_g, az2_g);
+        //printf("MPU1: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax1_g, ay1_g, az1_g);
+        //printf("MPU2: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax2_g, ay2_g, az2_g);
 
+        
+        vibrate_motor(VIBRATION_MOTOR_VCC);
 
         // Checks if posture is above the threshold.
-        if ((ax1_g > posture_threshold || ay1_g > posture_threshold ||
-            ax2_g > posture_threshold || ay2_g > posture_threshold) &&
-            (xTaskGetTickCount() - last_vibration_time > vibration_cooldown)) {
-
-            // Vibrates the motors
-            printf("Warning: Bad Posture Detected!\n");
-            vibrate_motor(VIBRATION_MOTOR_VCC);
-
-            // Updates last vibration time
-            last_vibration_time = xTaskGetTickCount();
-
-        } else {
-
-            printf("Posture OK\n");
-        }
+        //if ((ax1_g > posture_threshold || ay1_g > posture_threshold ||
+        //    ax2_g > posture_threshold || ay2_g > posture_threshold) &&
+        //    (xTaskGetTickCount() - last_vibration_time > vibration_cooldown)) {
+        //
+        //    // Vibrates the motors
+        //    printf("Warning: Bad Posture Detected!\n");
+        //    vibrate_motor(VIBRATION_MOTOR_VCC);
+        //
+        //    // Updates last vibration time
+        //    last_vibration_time = xTaskGetTickCount();
+        //
+        //} else {
+        //
+        //    printf("Posture OK\n");
+        //}
 
         // Adds a delay to reading
         vTaskDelay(pdMS_TO_TICKS(500));
@@ -236,8 +275,8 @@ int main() {
     sleep_ms(3000);
     
     // Initalizes the MPU_6250 sensors. 
-    init_mpu(IMU_UPPER_SCL, IMU_UPPER_SDA, IMU_UPPER_VCC, MPU_6250_ADDRESS, IMU_UPPER_I2C_BUS);
-    init_mpu(IMU_LOWER_SCL, IMU_LOWER_SDA, IMU_LOWER_VCC, MPU_6250_ADDRESS, IMU_LOWER_I2C_BUS);
+    init_mpu(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, IMU_UPPER_SCL, IMU_UPPER_SDA, IMU_UPPER_VCC);
+    init_mpu(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, IMU_LOWER_SCL, IMU_LOWER_SDA, IMU_LOWER_VCC);
 
     // Initalizes the vibration motor. 
     init_motor(VIBRATION_MOTOR_VCC);
