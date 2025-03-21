@@ -15,26 +15,19 @@ This README document is divided into three sections: ??? Compilation of java fil
 [**2. ????**](#???)<br> 
 [**3. ????**](#???)<br>
 
-*????? ????? ????? ?????*
+
+*Directory structure after compilation:*
 ```ascii
 .
 ├── build
-│   ├── CMakeCache.txt
-│   ├── CMakeFiles
-│   ├── cmake_install.cmake
-│   ├── compile_commands.json
-│   ├── elf2uf2
-│   ├── FREERTOS_KERNEL
-│   ├── generated
-│   ├── Makefile
-│   ├── pico-sdk
-│   ├── pioasm
-│   └── src
 ├── CMakeLists.txt
 ├── c_tests
 │   └── I2Ctest.c
 ├── doc
 │   ├── img
+│   │   ├── pi-pico-w-h-Pinout.jpg
+│   │   ├── raspberry-pi-pico-wh-image.jpg
+│   │   └── schematics-pi-pico-W.png
 │   ├── Midterm Presentation.pdf
 │   └── pi-pico-w-datasheet.pdf
 ├── lib
@@ -67,25 +60,16 @@ This README document is divided into three sections: ??? Compilation of java fil
 │   └── tsconfig.json
 ├── README.md
 └── src
+    ├── btstack_config.h
     ├── CMakeLists.txt
     ├── FreeRTOSConfig.h
-    ├── main2.c
-    └── main.c
+    ├── lwipopts.h
+    ├── main.c
+    ├── server_common.c
+    ├── server_common.h
+    └── temp_sensor.gatt
 ```
-```ascii
-.
-├── build
-├── CMakeLists.txt
-├── c_tests
-├── doc
-├── lib
-├── LICENSE
-├── micropython_tests
-├── pico_sdk_import.cmake
-├── react_app
-├── README.md
-└── src
-```
+
 
 <br><br><br><br><br>
 
