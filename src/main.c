@@ -29,6 +29,8 @@
 
 #define MPU_6250_ADDRESS 0x68           // Standard memory adress for MPU_6250 sensors.
 #define ACCEL_REG 0x3B                  // Start register for MPU accelerometer data (6 bytes).
+#define GYRO_REG 0x43                   // Start register for MPU gyroscopic data (6 bytes).
+#define TEMP_REG 0x41                   // Start register for MPU temperature data (2 bytes).
 #define PWR_MGMT_REG 0x6b               // MPU_6250 Power management register.
 
 
@@ -150,10 +152,10 @@ void init_mpu(i2c_inst_t *bus, uint8_t addr, uint8_t SCL, uint8_t SDA, uint8_t V
 void read_accelerometer(i2c_inst_t *bus ,uint8_t addr, int16_t accel[3]) {
     
     // Instances a register variable with memory location.
-    uint8_t reg = ACCEL_REG;  // 0x3B register.
+    uint8_t reg = ACCEL_REG;
     
-    // Instances a buffer for storing accelerometer readings.
-    uint8_t buffer[6];       // Reads 6 bytes from register.
+    // Instances a 6-byte buffer for accelerometer readings.
+    uint8_t buffer[6];
 
     // Requests and reads 6 bytes from acceelerometer register.
     i2c_write_blocking(bus, addr, &reg, 1, true);
@@ -163,6 +165,44 @@ void read_accelerometer(i2c_inst_t *bus ,uint8_t addr, int16_t accel[3]) {
     for (int i = 0; i < 3; i++) {
         accel[i] = (buffer[i * 2] << 8 | buffer[(i * 2) + 1]);
     }
+}
+
+
+// Retrieves gyroscopic I2C data from MPU_6250 sensor.
+void read_gyroscope(i2c_inst_t *bus ,uint8_t addr, int16_t gyro[3]) {
+    
+    // Instances a register variable with memory location.
+    uint8_t reg = GYRO_REG;
+    
+    // Instances a 6-byte buffer for gyroscopic readings.
+    uint8_t buffer[6];
+
+    // Requests and reads 6 bytes from gyroscope register.
+    i2c_write_blocking(bus, addr, &reg, 1, true);
+    i2c_read_blocking(bus, addr, buffer , 6, false);
+
+    // Reads 2 bytes 3 times and writes gyroscopic values to array.
+    for (int i = 0; i < 3; i++) {
+        accel[i] = (buffer[i * 2] << 8 | buffer[(i * 2) + 1]);
+    }
+}
+
+
+// Retrieves temperature I2C data from MPU_6250 sensor.
+void read_temperature(i2c_inst_t *bus ,uint8_t addr, int16_t temp) {
+    
+    // Instances a register variable with memory location.
+    uint8_t reg = TEMP_REG;
+    
+    // Instances a 2-byte buffer for temperature readings.
+    uint8_t buffer[2];
+
+    // Requests and reads 6 bytes from temperature register.
+    i2c_write_blocking(bus, addr, &reg, 1, true);
+    i2c_read_blocking(bus, addr, buffer , 6, false);
+
+    // Reads 2 bytes and writes temperature to variable.
+    *temp = buffer[0] << 8 | buffer[1];
 }
 
 
