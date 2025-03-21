@@ -35,12 +35,13 @@
 
 
 // Global variables.
-static btstack_timer_source_t ble_notify_timer;
-static btstack_packet_callback_registration_t hci_event_callback_registration
+static int16_t acceleration_1[3], acceleration_2[3];                            // 16-bit signed integer arrays for acceleration values.
+static int16_t gyroscope_1[3], gyroscope_2[3];                                  // 16-bit signed integer arrays for gyroscope values.
+static int16_t temperature_1, temperature_2;                                    // 16-bit signed integer for temperature values.
 
-int16_t acceleration_1[3], acceleration_2[3];
-int16_t gyroscope_1[3], gyroscope_2[3];
-int16_t temperature_1, temperature_2;
+static btstack_packet_callback_registration_t hci_event_callback_registration;  // Structure for handling HCI events.
+static btstack_timer_source_t ble_notify_timer;                                 // BTstack software timer for notifications.
+static const int notify_delay = 3000;                                           // Delay between BLE notifications.
 
 
 // Handles timed updating of BLE payload and advertisement.
@@ -56,47 +57,47 @@ static void ble_handler(struct btstack_timer_source *ts) {
         (temperature_2/340.0) + 36.53
     );
 
-    // If 
+    // Checks if client has enabled BLE notifications.
     if (le_notification_enabled) {
         att_server_request_can_send_now_event(con_handle);
     }
 
-    // 
+    // Restarts BTstack timer for callback to the BLE handler.
     btstack_run_loop_set_timer(ts, 3000);
     btstack_run_loop_add_timer(ts);
 }
 
                
-// Initializes Bluetooth Low Energy BLE component and related wireless protocols.
-void init_ble() {
+// Initializes Bluetooth Low Energy BLE with its related components & protocols.
+static void init_ble() {
     
-    // Initializes BL stack, L2cap layer and BL Security Manager.
+    // Initializes CYW43 WiFi/BL chip, L2cap protocol and BL Security Manager.
     cyw43_arch_init();
     l2cap_init();
     sm_init();
 
-    // 
+    // Initializes BLE Attribute Protocol ATT server with callbacks.
     att_server_init(profile_data, att_read_callback, att_write_callback);
 
-    // inform about BTstack state
+    // Sets callback and handler for HCI events.
     hci_event_callback_registration.callback = &packet_handler;
     hci_add_event_handler(&hci_event_callback_registration);
 
-    // register for ATT event
+    // Sets callback and handler for ATT packets.
     att_server_register_packet_handler(packet_handler);
 
-    // setup 
+    // Sets up periodic timer for BLE callback.
     ble_notify_timer.process = &ble_handler;
     btstack_run_loop_set_timer(&ble_notify_timer, 3000);
     btstack_run_loop_add_timer(&ble_notify_timer);
-
-    // Powers on the bluetooth.
+    
+    // Powers on the bluetooth stack.
     hci_power_control(HCI_POWER_ON);
 }
 
 
 // Initiates pins, I2C communication and power for MPU_6250 sensor.
-void init_mpu(i2c_inst_t *bus, uint8_t addr, uint8_t SCL, uint8_t SDA, uint8_t VCC) {
+static void init_mpu(i2c_inst_t *bus, uint8_t addr, uint8_t SCL, uint8_t SDA, uint8_t VCC) {
     
     // Sets pins to function as I2C communication pins.
     gpio_set_function(SDA, GPIO_FUNC_I2C);
@@ -124,7 +125,7 @@ void init_mpu(i2c_inst_t *bus, uint8_t addr, uint8_t SCL, uint8_t SDA, uint8_t V
 
 
 // Retrieves accelerometer I2C data from MPU_6250 sensor.
-void read_accelerometer(i2c_inst_t *bus ,uint8_t addr, int16_t accel[3]) {
+static void read_accelerometer(i2c_inst_t *bus ,uint8_t addr, int16_t accel[3]) {
     
     // Instances a register variable with memory location.
     uint8_t reg = ACCEL_REG;
@@ -144,7 +145,7 @@ void read_accelerometer(i2c_inst_t *bus ,uint8_t addr, int16_t accel[3]) {
 
 
 // Retrieves gyroscopic I2C data from MPU_6250 sensor.
-void read_gyroscope(i2c_inst_t *bus ,uint8_t addr, int16_t gyro[3]) {
+static void read_gyroscope(i2c_inst_t *bus ,uint8_t addr, int16_t gyro[3]) {
     
     // Instances a register variable with memory location.
     uint8_t reg = GYRO_REG;
@@ -164,7 +165,7 @@ void read_gyroscope(i2c_inst_t *bus ,uint8_t addr, int16_t gyro[3]) {
 
 
 // Retrieves temperature I2C data from MPU_6250 sensor.
-void read_temperature(i2c_inst_t *bus ,uint8_t addr, int16_t *temp) {
+static void read_temperature(i2c_inst_t *bus ,uint8_t addr, int16_t *temp) {
     
     // Instances a register variable with memory location.
     uint8_t reg = TEMP_REG;
@@ -174,7 +175,7 @@ void read_temperature(i2c_inst_t *bus ,uint8_t addr, int16_t *temp) {
 
     // Requests and reads 6 bytes from temperature register.
     i2c_write_blocking(bus, addr, &reg, 1, true);
-    i2c_read_blocking(bus, addr, buffer , 6, false);
+    i2c_read_blocking(bus, addr, buffer , 2, false);
 
     // Reads 2 bytes and writes temperature to variable.
     *temp = buffer[0] << 8 | buffer[1];
@@ -182,7 +183,7 @@ void read_temperature(i2c_inst_t *bus ,uint8_t addr, int16_t *temp) {
 
 
 // Initiates GPIO pin for vibration motor.
-void init_motor(uint8_t PIN) {
+static void init_motor(uint8_t PIN) {
 
     // Initates pin and sets direction to output.
     gpio_init(PIN);
@@ -191,7 +192,7 @@ void init_motor(uint8_t PIN) {
 
 
 // Enables vibration motor for haptic feedback.
-void vibrate_motor(uint8_t PIN) {
+static void vibrate_motor(uint8_t PIN) {
     
     // Starts vibrating.
     gpio_put(PIN, 1);
@@ -211,7 +212,7 @@ void vibrate_motor(uint8_t PIN) {
 
 
 // The main posture correction task run in FreeRTOS.
-void posture_monitor_task(void *pvParameters) {
+static void posture_monitor_task(void *pvParameters) {
 
     // Defines vibration cooldown variables.
     static TickType_t last_vibration_time = 0;
@@ -235,12 +236,12 @@ void posture_monitor_task(void *pvParameters) {
         read_accelerometer(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, acceleration_2);
 
         // Retrieves gyroscopic readings from both sensors.
-        read_gyroscope(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, gyro_1);
-        read_gyroscope(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, gyro_2);
+        read_gyroscope(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, gyroscope_1);
+        read_gyroscope(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, gyroscope_2);
 
         // Retrieves temperature readings from both sensors.
-        read_temperature(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, &temp_1);
-        read_temperature(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, &temp_2);
+        read_temperature(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, &temperature_1);
+        read_temperature(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, &temperature_2);
 
         // Vibrates the onboard motor.
         vibrate_motor(VIBRATION_MOTOR_VCC);
@@ -274,7 +275,7 @@ void posture_monitor_task(void *pvParameters) {
 
 
 // Entry point program.
-int main() {
+static int main() {
     
     // Initializes the standard C library.
     stdio_init_all();
