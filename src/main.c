@@ -40,9 +40,11 @@ static btstack_packet_callback_registration_t hci_event_callback_registration;
 
 int16_t acceleration_1[3], acceleration_2[3];
 int16_t gyro_1[3], gyro_2[3];
-int16_t temperature;
+int16_t temp_1, temp_2;
 
 
+// !=!=!=! // Instances coordinate variables.
+volatile int16_t ax1, ay1, az1, ax2, ay2, az2;
 volatile float ax1_g, ay1_g, az1_g, ax2_g, ay2_g, az2_g;
 
 
@@ -54,12 +56,20 @@ static void ble_handler(struct btstack_timer_source *ts) {
     // can remove this
     if (counter < 30) goto restart_timer;
 
-
     // Update the "TEMP" every 3 seconds
     if (counter % 3 == 0) {
         
-        //float ax = 0.12f, ay = -9.81f, az = 1.23f;
         // Data in g-forces
+        //float ax = 0.12f, ay = -9.81f, az = 1.23f;
+
+        // Converts float values to g-forces.
+        //ax1_g = convert_to_g(ax1);
+        //ay1_g = convert_to_g(ay1);
+        //az1_g = convert_to_g(az1);
+        //ax2_g = convert_to_g(ax2);
+        //ay2_g = convert_to_g(ay2);
+        //az2_g = convert_to_g(az2);
+
         //snprintf(accel_string, ACCEL_STR_LEN, 
         //    "X1:%.3f | Y:%.3f | Z:%.3f\nX2:%.3f | Y2:%.3f | Z2: %.3f", 
         //    ax1_g, ay1_g, az1_g, ax2_g, ay2_g, az2_g);
@@ -67,32 +77,26 @@ static void ble_handler(struct btstack_timer_source *ts) {
         //printf("X1:%.3f | Y:%.3f | Z:%.3f\nX2:%.3f | Y2:%.3f | Z2: %.3f", 
         //    ax1_g, ay1_g, az1_g, ax2_g, ay2_g, az2_g);
 
-        ax1_g = convert_to_g(ax1);
-        ay1_g = convert_to_g(ay1);
-        az1_g = convert_to_g(az1);
-        ax2_g = convert_to_g(ax2);
-        ay2_g = convert_to_g(ay2);
-        az2_g = convert_to_g(az2);
 
         // Real data type
         // int16_t ax1 = 120, ay1 = -981, az1 = 123;
         
-        snprintf(accel_string, sizeof(accel_string), "Acc. X = %d, Y = %d, Z = %d", acc_1[0], acc_1[2], acc_1[2]);
+        snprintf(data_payload, PAYLOAD_LENGTH, "Acc. X = %d, Y = %d, Z = %d", 
+            acceleration_1[0], acceleration_1[2], acceleration_1[2]);
         
         if (le_notification_enabled) {
             att_server_request_can_send_now_event(con_handle);
         }
     }
 
-
+    // Restart timer.
     restart_timer:
-    // Restart timer
     btstack_run_loop_set_timer(ts, 1000);
     btstack_run_loop_add_timer(ts);
 }
 
                
-// Initializes Bluetooth Low Energy, BLE ___  .     // ORIGINALLY (main() in server.c)
+// Initializes Bluetooth Low Energy, BLE component and related wireless protocols.
 void init_ble() {
     
     // Initializes
@@ -100,7 +104,7 @@ void init_ble() {
     l2cap_init();
     sm_init();
 
-
+    //
     att_server_init(profile_data, att_read_callback, att_write_callback);
 
     // inform about BTstack state
@@ -115,7 +119,7 @@ void init_ble() {
     btstack_run_loop_set_timer(&heartbeat, 1000);
     btstack_run_loop_add_timer(&heartbeat);
 
-    // turn on bluetooth!
+    // Powers on the bluetooth.
     hci_power_control(HCI_POWER_ON);
 }
 
@@ -183,7 +187,7 @@ void read_gyroscope(i2c_inst_t *bus ,uint8_t addr, int16_t gyro[3]) {
 
     // Reads 2 bytes 3 times and writes gyroscopic values to array.
     for (int i = 0; i < 3; i++) {
-        accel[i] = (buffer[i * 2] << 8 | buffer[(i * 2) + 1]);
+        gyro[i] = (buffer[i * 2] << 8 | buffer[(i * 2) + 1]);
     }
 }
 
@@ -202,7 +206,7 @@ void read_temperature(i2c_inst_t *bus ,uint8_t addr, int16_t temp) {
     i2c_read_blocking(bus, addr, buffer , 6, false);
 
     // Reads 2 bytes and writes temperature to variable.
-    *temp = buffer[0] << 8 | buffer[1];
+    temp = buffer[0] << 8 | buffer[1];
 }
 
 
@@ -230,9 +234,9 @@ void vibrate_motor(uint8_t PIN) {
 
 
 // Converts float values to force measured in g (9.82 ms^2).
-float convert_to_g(int16_t raw) {
-    return (float)raw / 16384.0f;
-}
+//float convert_to_g(int16_t raw) {
+//    return (float)raw / 16384.0f;
+//}
 
 
 // The main posture correction task run in FreeRTOS.
@@ -248,20 +252,10 @@ void posture_monitor_task(void *pvParameters) {
     // 
     while(1) {
 
-        // Instances coordinate variables.
-        //int16_t ax1, ay1, az1, ax2, ay2, az2;
-
         // Retrieves readings from both sensors.
-        read_accelerometer(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, acc_1);
-        read_accelerometer(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, acc_2);
+        read_accelerometer(IMU_UPPER_I2C_BUS, MPU_6250_ADDRESS, acceleration_1);
+        read_accelerometer(IMU_LOWER_I2C_BUS, MPU_6250_ADDRESS, acceleration_2);
 
-        // Converts float values to g-forces.
-        //ax1_g = convert_to_g(ax1);
-        //ay1_g = convert_to_g(ay1);
-        //az1_g = convert_to_g(az1);
-        //ax2_g = convert_to_g(ax2);
-        //ay2_g = convert_to_g(ay2);
-        //az2_g = convert_to_g(az2);
 
         // Invert the LED
         static int led_on = true;
@@ -272,7 +266,6 @@ void posture_monitor_task(void *pvParameters) {
         //printf("MPU1: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax1_g, ay1_g, az1_g);
         //printf("MPU2: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax2_g, ay2_g, az2_g);
 
-        
         vibrate_motor(VIBRATION_MOTOR_VCC);
 
         // Checks if posture is above the threshold.

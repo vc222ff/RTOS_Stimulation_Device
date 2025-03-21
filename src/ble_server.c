@@ -2,99 +2,98 @@
  * Copyright (c) 2023 Raspberry Pi (Trading) Ltd.
  *
  * SPDX-License-Identifier: BSD-3-Clause
- */
+*/
 
- // Imports dependencies.
- #include <stdio.h>
- #include <btstack.h>
- 
- // Imports header files.
- #include "temp_sensor.h"
- #include "ble_server.h"
- 
+// Imports dependencies.
+#include <stdio.h>
+#include <btstack.h>
 
- // Declares preprocessor macro. 
- #define APP_AD_FLAGS 0x06
+// Imports header files.
+#include "temp_sensor.h"
+#include "ble_server.h"
 
- // Global variables.
- static uint8_t adv_data[] = {
-     0x02, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS,                     // Flags: General Discoverable.
-     0x17, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,                     // Device Name.
-     'P', 'i', 'c', 'o', ' ', '0', '0', ':', '0', '0', ':', 
-     '0', '0', ':', '0', '0', ':', '0', '0', ':', '0', '0',
-     0x03, BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS, 0x1a, 0x18,
- };
- static const uint8_t adv_data_len = sizeof(adv_data);                  // Advertisement data length.
- int le_notification_enabled;                                           // Bluetooth Low-Energi enabled boolean.
- hci_con_handle_t con_handle;                                           // 
- uint16_t current_temp;                                                 // Current temperature.
+// Declares preprocessor macro. 
+#define APP_AD_FLAGS 0x06
 
- char accel_string[ACCEL_STR_LEN];
+// Global variables.
+int le_notification_enabled;                                           // Bluetooth Low-Energi enabled boolean.
+hci_con_handle_t con_handle;                                           // 
+char data_payload[PAYLOAD_LENGTH];                                     // Outgoing string array with data payload.
+static uint8_t adv_data[] = {                                          // 
+    0x02, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS,                          // Flags: General Discoverable.
+    0x17, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,                          // Device Name.
+    'P', 'i', 'c', 'o', ' ', '0', '0', ':', '0', '0', ':', 
+    '0', '0', ':', '0', '0', ':', '0', '0', ':', '0', '0',
+    0x03, BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS, 0x1a, 0x18,
+};
+static const uint8_t adv_data_len = sizeof(adv_data);                  // Advertisement data length.
 
 
- // Packet handler function.
- void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
-     UNUSED(size);
-     UNUSED(channel);
-     bd_addr_t local_addr;
-     if (packet_type != HCI_EVENT_PACKET) return;
- 
-     uint8_t event_type = hci_event_packet_get_type(packet);
-     switch(event_type){
-         case BTSTACK_EVENT_STATE:
-             if (btstack_event_state_get_state(packet) != HCI_STATE_WORKING) return;
-             gap_local_bd_addr(local_addr);
-             printf("BTstack up and running on %s.\n", bd_addr_to_str(local_addr));
- 
-             // Settings for BLE advertisements.
-             uint16_t adv_int_min = 800;            // Min interval period.
-             uint16_t adv_int_max = 800;            // Max interval period.
-             uint8_t adv_type = 0;                  // Advertisement type.
-             bd_addr_t null_addr;
-             memset(null_addr, 0, 6);
-             gap_advertisements_set_params(adv_int_min, adv_int_max, adv_type, 0, null_addr, 0x07, 0x00);
-             assert(adv_data_len <= 31);            // BLE limitation.
-             gap_advertisements_set_data(adv_data_len, (uint8_t*) adv_data);
-             gap_advertisements_enable(1);
- 
-             break;
+// Packet handler function.
+void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
+    UNUSED(size);
+    UNUSED(channel);
+    bd_addr_t local_addr;
 
-         case HCI_EVENT_DISCONNECTION_COMPLETE:
-             le_notification_enabled = 0;
-             break;
+    if (packet_type != HCI_EVENT_PACKET) return;
 
-         case ATT_EVENT_CAN_SEND_NOW:
-             att_server_notify(con_handle, ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE, (uint8_t*)accel_string, sizeof(accel_string));
-             break;
+    uint8_t event_type = hci_event_packet_get_type(packet);
+    switch(event_type){
 
-         default:
-             break;
-     }
- }
- 
+        case BTSTACK_EVENT_STATE:
+            if (btstack_event_state_get_state(packet) != HCI_STATE_WORKING) return;
+            gap_local_bd_addr(local_addr);
+            printf("BTstack up and running on %s.\n", bd_addr_to_str(local_addr));
 
- // BLE read callback function.
- uint16_t att_read_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t offset, uint8_t * buffer, uint16_t buffer_size) {
-     UNUSED(connection_handle);
- 
-     if (att_handle == ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE){
-         return att_read_callback_handle_blob((const uint8_t *)accel_string, sizeof(accel_string), offset, buffer, buffer_size);
-     }
-     return 0;
- }
- 
+            // Settings for BLE advertisements.
+            uint16_t adv_int_min = 800;            // Min interval period.
+            uint16_t adv_int_max = 800;            // Max interval period.
+            uint8_t adv_type = 0;                  // Advertisement type.
+            bd_addr_t null_addr;
+            memset(null_addr, 0, 6);
+            gap_advertisements_set_params(adv_int_min, adv_int_max, adv_type, 0, null_addr, 0x07, 0x00);
+            assert(adv_data_len <= 31);            // BLE limitation.
+            gap_advertisements_set_data(adv_data_len, (uint8_t*) adv_data);
+            gap_advertisements_enable(1);
+            break;
+
+        case HCI_EVENT_DISCONNECTION_COMPLETE:
+            le_notification_enabled = 0;
+            break;
+
+        case ATT_EVENT_CAN_SEND_NOW:
+            att_server_notify(con_handle, ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE, (uint8_t*)data_payload, sizeof(data_payload));
+            break;
+
+        default:
+            break;
+    }
+}
+
+
+// BLE read callback function.
+uint16_t att_read_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t offset, uint8_t * buffer, uint16_t buffer_size) {
+    UNUSED(connection_handle);
+
+    if (att_handle == ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE){
+        return att_read_callback_handle_blob((const uint8_t *)data_payload, sizeof(data_payload), offset, buffer, buffer_size);
+    }
+    return 0;
+}
+
 
 // BLE write callback function. 
- int att_write_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t transaction_mode, uint16_t offset, uint8_t *buffer, uint16_t buffer_size) {
-     UNUSED(transaction_mode);
-     UNUSED(offset);
-     UNUSED(buffer_size);
-     
-     if (att_handle != ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_CLIENT_CONFIGURATION_HANDLE) return 0;
-     le_notification_enabled = little_endian_read_16(buffer, 0) == GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION;
-     con_handle = connection_handle;
-     if (le_notification_enabled) {
-         att_server_request_can_send_now_event(con_handle);
-     }
-     return 0;
- }
+int att_write_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t transaction_mode, uint16_t offset, uint8_t *buffer, uint16_t buffer_size) {
+    UNUSED(transaction_mode);
+    UNUSED(offset);
+    UNUSED(buffer_size);
+    
+    if (att_handle != ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_CLIENT_CONFIGURATION_HANDLE) return 0;
+    le_notification_enabled = little_endian_read_16(buffer, 0) == GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION;
+    con_handle = connection_handle;
+
+    if (le_notification_enabled) {
+        att_server_request_can_send_now_event(con_handle);
+    }
+    return 0;
+}
