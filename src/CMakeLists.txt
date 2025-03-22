@@ -1,6 +1,6 @@
 # Adds project executables.
 add_executable(${ProjectName}
-    main.c ble_server.c
+    main.c ble_server.c flash_storage.c
 )
 
 # Adds standard include files to build.
@@ -17,6 +17,8 @@ target_link_libraries(${ProjectName}
     hardware_timer
     hardware_watchdog
     hardware_clocks
+    hardware_flash
+    hardware_sync
     pico_stdlib
     pico_stdio_usb
     pico_btstack_ble

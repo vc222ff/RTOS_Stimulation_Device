@@ -45,6 +45,8 @@ static btstack_packet_callback_registration_t hci_event_callback_registration;  
 static btstack_timer_source_t ble_notify_timer;                                 // BTstack software timer for notifications.
 static const int ble_notify_delay = 3000;                                       // Delay between the notifications.
 
+static CalibrationData calibration_config;                                      // Structure for calibration configuration from flash memory. 
+
 
 // Handles timed updating of BLE payload and advertisement.
 static void ble_handler(struct btstack_timer_source *ts) {
@@ -127,7 +129,7 @@ static void init_mpu(i2c_inst_t *bus, uint8_t addr, uint8_t SCL, uint8_t SDA, ui
 
 
 // Retrieves accelerometer I2C data from MPU_6050 sensor.
-static void read_accelerometer(i2c_inst_t *bus ,uint8_t addr, int16_t accel[3]) {
+static void read_accelerometer(i2c_inst_t *bus, uint8_t addr, int16_t accel[3], const int16_t *bias) {
     
     // Instances a register variable with memory location.
     uint8_t reg = ACCEL_REG;
@@ -141,13 +143,14 @@ static void read_accelerometer(i2c_inst_t *bus ,uint8_t addr, int16_t accel[3]) 
 
     // Reads 2 bytes 3 times and writes acceleration values to array.
     for (int i = 0; i < 3; i++) {
-        accel[i] = (buffer[i * 2] << 8 | buffer[(i * 2) + 1]);
+        int16_t raw = (buffer[i * 2] << 8) | buffer[i * 2 + 1];
+        accel[i] = raw - (bias ? bias[i] : 0);
     }
 }
 
 
 // Retrieves gyroscopic I2C data from MPU_6050 sensor.
-static void read_gyroscope(i2c_inst_t *bus ,uint8_t addr, int16_t gyro[3]) {
+static void read_gyroscope(i2c_inst_t *bus, uint8_t addr, int16_t gyro[3], const int16_t *bias) {
     
     // Instances a register variable with memory location.
     uint8_t reg = GYRO_REG;
@@ -161,7 +164,8 @@ static void read_gyroscope(i2c_inst_t *bus ,uint8_t addr, int16_t gyro[3]) {
 
     // Reads 2 bytes 3 times and writes gyroscopic values to array.
     for (int i = 0; i < 3; i++) {
-        gyro[i] = (buffer[i * 2] << 8 | buffer[(i * 2) + 1]);
+        int16_t raw = (buffer[i * 2] << 8) | buffer[i * 2 + 1];
+        gyro[i] = raw - (bias ? bias[i] : 0);
     }
 }
 
@@ -181,6 +185,50 @@ static void read_temperature(i2c_inst_t *bus ,uint8_t addr, int16_t *temp) {
 
     // Reads 2 bytes and writes temperature to variable.
     *temp = buffer[0] << 8 | buffer[1];
+}
+
+
+// Calibrates MPU_6050 sensor to mitigate built-in bias.
+static void calibrate_mpu(i2c_inst_t *bus ,uint8_t addr, SensorCalibration *sensor) {
+    
+    // Sample amount for calibration. 
+    const int samples = 2000;
+
+    // Arrays for raw sensor reading data.
+    int16_t accel_raw[3], gyro_raw[3];
+    
+    // Arrays for sum of sensor reading data.
+    int32_t accel_sum[3] = {0};
+    int32_t gyro_sum[3] = {0};
+
+    // Boolean variable for toggling onboard LED.
+    static int led_on = true;
+
+    // Collects multiple samples for more reliability.
+    for (int i = 0; i < samples; i++) {
+
+        // Retrieves sensor readings without bias.
+        read_accelerometer(bus, addr, accel_raw, NULL);
+        read_gyroscope(bus, addr, gyro_raw, NULL);
+
+        // Sums up all sample values in one.
+        for (int j = 0; j < 3; j++) {
+            accel_sum[j] += accel_raw[j];
+            gyro_sum[j] += gyro_raw[j];
+        }
+        
+        // Small delay between readings.
+        vTaskDelay(pdMS_TO_TICKS(10));  
+    }
+    
+    // Stores the average bias values.
+    for (int j = 0; j < 3; j++) {
+        sensor->accelerometer_bias[j] = accel_sum[j] / samples;
+        sensor->gyroscope_bias[j] = gyro_sum[j] / samples;
+    }
+
+    // Turns off the built-in LED.
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 }
 
 
@@ -212,9 +260,34 @@ static void vibrate_motor(uint8_t PIN) {
 //    return (float)raw / 16384.0f;
 //}
 
+// Define and use CalibrationData
+//CalibrationData calib = {
+//    .sensor1 = {{0,0,0}, {0,0,0}},
+//    .sensor2 = {{0,0,0}, {0,0,0}},
+//    .magic = CALIBRATION_MAGIC
+//};
+
 
 // The main posture correction task run in FreeRTOS.
 static void posture_monitor_task(void *pvParameters) {
+    
+    // Retrieves calibration config from flash memory.
+    calibration_config = read_calibration_from_flash();
+
+    // Checks so that calibration magic is valid.
+    if (calibration_config.magic != CALIBRATION_MAGIC) {
+        
+        // Calibrates the MPU_6050 sensors.
+        calibrate_mpu(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, &calibration_config.sensor_1);
+        calibrate_mpu(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, &calibration_config.sensor_2);
+        
+        // Sets magic to ensure data validity. 
+        calibration_config.magic = CALIBRATION_MAGIC;
+        
+        // Saves calibration config to flash memory.
+        save_calibration_to_flash(&calibration_config);
+    }
+
 
     // Defines vibration cooldown variables.
     static TickType_t last_vibration_time = 0;
@@ -228,18 +301,14 @@ static void posture_monitor_task(void *pvParameters) {
 
     // While-true statement.
     while(1) {
-
-        // Inverts the onboard LED to show processing.
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
-        led_on = !led_on;
-
+        
         // Retrieves accelerometer readings from both sensors.
-        read_accelerometer(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, acceleration_1);
-        read_accelerometer(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, acceleration_2);
+        read_accelerometer(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, acceleration_1, calibration_config.sensor_1.accelerometer_bias);
+        read_accelerometer(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, acceleration_2, calibration_config.sensor_2.accelerometer_bias);
 
         // Retrieves gyroscopic readings from both sensors.
-        read_gyroscope(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, gyroscope_1);
-        read_gyroscope(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, gyroscope_2);
+        read_gyroscope(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, gyroscope_1, calibration_config.sensor_1.gyroscope_bias);
+        read_gyroscope(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, gyroscope_2, calibration_config.sensor_2.gyroscope_bias);
 
         // Retrieves temperature readings from both sensors.
         read_temperature(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, &temperature_1);
@@ -248,7 +317,10 @@ static void posture_monitor_task(void *pvParameters) {
         // Vibrates the onboard motor.
         vibrate_motor(VIBRATION_MOTOR_VCC);
 
-        
+        // Inverts the onboard LED to show processing.
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
+        led_on = !led_on;
+
         // Prints results.
         //printf("MPU1: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax1_g, ay1_g, az1_g);
         //printf("MPU2: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax2_g, ay2_g, az2_g);
@@ -277,7 +349,7 @@ static void posture_monitor_task(void *pvParameters) {
 
 
 // Entry point program.
-static int main() {
+int main() {
     
     // Initializes the standard C library.
     stdio_init_all();
