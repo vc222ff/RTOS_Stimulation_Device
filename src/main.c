@@ -12,6 +12,8 @@
 // Imports BLE server header file.
 #include "ble_server.h"
 
+// Imports flash storage header file.
+#include "flash_storage.h"
 
 // Declares preprocessor macros for settings. (Before compilation).
 #define VIBRATION_MOTOR_VCC 21          // Vibration motor GPIO pin.
@@ -268,8 +270,8 @@ static void posture_monitor_task(void *pvParameters) {
         //    printf("Posture OK\n");
         //}
 
-        // Adds a delay to reading
-        vTaskDelay(pdMS_TO_TICKS(500));
+        // Adds a delay to reading.
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
