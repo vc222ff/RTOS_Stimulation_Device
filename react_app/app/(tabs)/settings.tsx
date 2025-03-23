@@ -8,8 +8,14 @@ import { BLEContext } from '@/services/BLEContext';
 
 
 // Expo tab four function.
-export default function TabFourScreen() {
-  const { serviceUUID, setServiceUUID, characteristicUUID, setCharacteristicUUID } = useContext(BLEContext);
+export default function SettingsScreen() {
+  const { 
+    serviceUUID, 
+    setServiceUUID, 
+    characteristicUUID, 
+    setCharacteristicUUID 
+  } = useContext(BLEContext);
+
   const [localService, setLocalService] = useState(serviceUUID);
   const [localChar, setLocalChar] = useState(characteristicUUID);
 
@@ -21,22 +27,25 @@ export default function TabFourScreen() {
       <Text style={styles.label}>Service UUID</Text>
       <TextInput
         style={styles.input}
-        placeholder="e.g. 1234abcd-5678-90ef..."
+        placeholder="Enter UUID here"
         value={localService}
         onChangeText={setLocalService}
         autoCapitalize="none"
         autoCorrect={false}
       />
+      <Text style={styles.currentValue}>Current: {serviceUUID || 'Not set'}</Text>
 
       <Text style={styles.label}>Characteristic UUID</Text>
       <TextInput
         style={styles.input}
-        placeholder="e.g. abcd1234-5678-90ef..."
+        placeholder="Enter UUID here"
         value={localChar}
         onChangeText={setLocalChar}
         autoCapitalize="none"
         autoCorrect={false}
       />
+      <Text style={styles.currentValue}>Current: {characteristicUUID || 'Not set'}</Text>
+
 
       <View style={styles.buttonContainer}>
         <Button
@@ -85,6 +94,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 16,
+  },
+  currentValue: {
+    fontSize: 12,
+    color: '#777',
+    marginBottom: 12,
+    paddingTop: 8,
   },
   buttonContainer: {
     marginTop: 24,

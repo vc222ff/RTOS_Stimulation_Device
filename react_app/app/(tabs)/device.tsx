@@ -11,7 +11,7 @@ import { usePostureData } from '@/hooks/usePostureData';
 
 
 // Expo tab three function.
-export default function TabThreeScreen() {
+export default function DeviceScreen() {
   const { device, setDevice, serviceUUID } = useContext(BLEContext);        // Retrieves the currently connected BLE device.
   const { postureData } = usePostureData(device);                           // Retrieves posture data from device.
   
@@ -54,7 +54,6 @@ export default function TabThreeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Your Device</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
 
       <Text style={{ color: device ? 'green' : 'red' }}>
         {device ? 'Connected to: ' + device.name : 'No BLE device connected'}
@@ -68,6 +67,9 @@ export default function TabThreeScreen() {
         </View>
       ) : (
         <View style={{ width: '100%' }}>
+          <Text style={styles.uuidLabel}>Scanning for Service UUID:</Text>
+          <Text style={styles.uuidValue}>{serviceUUID || 'Not set'}</Text>
+
           <Button title={isScanning ? "Scanning..." : "Scan for Devices"} onPress={startScan} />
           
           {foundDevices.length > 0 && (
@@ -138,5 +140,17 @@ const styles = StyleSheet.create({
   deviceId: {
     fontSize: 12,
     color: '#666',
+  },
+  uuidLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  uuidValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 10,
+    textAlign: 'center',
   },
 });

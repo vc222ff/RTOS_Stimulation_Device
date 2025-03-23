@@ -6,11 +6,11 @@ import { Text, View } from '@/components/Themed';
 
 
 // Expo tab one (index) function.
-export default function TabOneScreen() {
+export default function HomeScreen() {
   return (
     <View style={styles.container}>
     <Text style={styles.title}>Welcome to the Companion App!</Text>
-    <Text style={styles.text}>/nThis app is developed for the Posture Correction Wearable Device</Text>
+    <Text style={styles.text}>This app is developed for the Posture Correction Wearable Device.</Text>
 
     <Image source={require('@/assets/images/device.png')} style={styles.image}/>
     <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />

@@ -41,7 +41,7 @@ const chartConfig = {
 // TODO: Import data from persistent storage solution. (DB)
 
 // Expo tab two function.
-export default function TabTwoScreen() {
+export default function TrendsScreen() {
   
   // Function-scoped variables.
   const { device } = useContext(BLEContext);
@@ -73,7 +73,9 @@ export default function TabTwoScreen() {
           style={styles.chart}
         />
       ) : (
-        <Text>No BLE-device currently connected to your mobile device</Text>
+        <Text style={{ color: device ? 'green' : 'red' }}>
+          {device ? '' : 'No BLE device connected'}
+        </Text>
       )}
     </View>
   );  

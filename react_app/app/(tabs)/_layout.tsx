@@ -52,21 +52,21 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="two_trends"
+        name="trends"
         options={{
           title: 'Trends',
           tabBarIcon: ({ color }) => <TabBarIcon name="bar-chart" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="three_device"
+        name="device"
         options={{
           title: 'Device',
           tabBarIcon: ({ color }) => <TabBarIcon name="rocket" color={color} />,
         }}                                    // name="microchip"
       />
       <Tabs.Screen
-        name="four_settings"
+        name="settings"
         options={{
           title: 'Settings',
           tabBarIcon: ({ color }) => <TabBarIcon name="gear" color={color} />,
