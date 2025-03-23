@@ -1,56 +1,68 @@
+// Imports dependencies.
 import { Platform } from "react-native";
-import type { Device } from "react-native-ble-plx";
+import { BleManager, type Device } from "react-native-ble-plx";
 
-export interface IBLEService {
-    startScan: (onDeviceFound: (device: any) => void) => void;
-    stopScan: () => void;
-    destroy: () => void;
-}
 
+// Global instance
 let BLEService: IBLEService;
 
 
-if (Platform.OS === 'web') {
-    console.warn('BLEService and BLE is not supported on web. Using dummy implementation.')
-    BLEService = {
-        startScan: (onDeviceFound: (device: any) => void) => {},
-        stopScan: () => {},
-        destroy: () => {},
-    };
-} else {
-    // Dynamically imports native BLE dependencies.
-    const { BleManager } = require('react-native-ble-plx');
-
-    class RealBLEService implements IBLEService {
-        private manager: any;
-
-        constructor() {
-            this.manager = new BleManager();
-        }
-
-        startScan(onDeviceFound: (device: Device) => void) {
-            this.manager.startDeviceScan(null, null, (error: any, device: Device) => {
-                if (error) {
-                    console.error('Error during BLE scan:', error);
-                    return;
-                }
-                if (device) {
-                    onDeviceFound(device);
-                }
-            });
-        }
-
-        stopScan() {
-            this.manager.stopDeviceScan();
-        }
-    
-        destroy() {
-            this.manager.destroy();
-        }
-    }
-
-    BLEService = new RealBLEService(); 
+// Interface definition
+export interface IBLEService {
+  startScan: (
+    onDeviceFound: (device: Device) => void,
+    options?: { serviceUUID?: string }
+  ) => void;
+  stopScan: () => void;
+  destroy: () => void;
 }
 
 
+// Real implementation for native
+class RealBLEService implements IBLEService {
+  private manager: BleManager;
+
+  constructor() {
+    this.manager = new BleManager();
+  }
+
+  startScan(
+    onDeviceFound: (device: Device) => void,
+    options?: { serviceUUID?: string }
+  ) {
+    const scanFilter = options?.serviceUUID ? [options.serviceUUID] : null;
+
+    this.manager.startDeviceScan(scanFilter, null, (error, device) => {
+      if (error) {
+        console.error('Error during BLE scan:', error);
+        return;
+      }
+      if (device) {
+        onDeviceFound(device);
+      }
+    });
+  }
+
+  stopScan() {
+    this.manager.stopDeviceScan();
+  }
+
+  destroy() {
+    this.manager.destroy();
+  }
+}
+
+// Platform-specific assignment
+if (Platform.OS === 'web') {
+  console.warn('BLE is not supported on web — using dummy BLEService.');
+  BLEService = {
+    startScan: (onDeviceFound: (device: any) => void, _options?: any) => {},
+    stopScan: () => {},
+    destroy: () => {},
+  };
+} else {
+  BLEService = new RealBLEService();
+}
+
+// Default export service.
 export default BLEService;

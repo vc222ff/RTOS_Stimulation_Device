@@ -1,16 +1,38 @@
+// Imports dependencies.
 import React, { createContext, useState, useEffect } from 'react';
 import { Platform, PermissionsAndroid } from 'react-native';
 import { Device } from 'react-native-ble-plx';
 
+// Imports app service.
 import BLEService from './BLEService';
 
-export const BLEContext = createContext<{device: Device | null}>({ device: null});
+
+//
+export const BLEContext = createContext<{
+  device: Device | null;
+  setDevice: (device: Device | null) => void;
+  serviceUUID: string;
+  setServiceUUID: (uuid: string) => void;
+  characteristicUUID: string;
+  setCharacteristicUUID: (uuid: string) => void;
+}>({
+  device: null,
+  setDevice: () => {},
+  serviceUUID: '',
+  setServiceUUID: () => {},
+  characteristicUUID: '',
+  setCharacteristicUUID: () => {},
+});
 
 
+//
 export const BLEProvider = ({ children }: { children: React.ReactNode }) => {
-    const [device, setDevice] = useState<Device | null>(null);
+  const [device, setDevice] = useState<Device | null>(null);
+  const [serviceUUID, setServiceUUID] = useState<string>('');                   // Mutable service UUID string.
+  const [characteristicUUID, setCharacteristicUUID] = useState<string>('');     // Mutable characteristics UUID string.
 
     useEffect(() => {
+
         // Request needed permissions on Android.
         async function requestPermissions() {
             if (Platform.OS === 'android') {
@@ -21,10 +43,13 @@ export const BLEProvider = ({ children }: { children: React.ReactNode }) => {
                 ]);
             }
         }
+        
         requestPermissions().then(() => {
             BLEService.startScan((foundDevice) => {
+                
                 // Optionally filter by name or other criteria here.
                 if (foundDevice.name && foundDevice.name.includes('pico')) {
+                    
                     // Sets found device as webapp BLE device.
                     setDevice(foundDevice);
                     
@@ -41,8 +66,15 @@ export const BLEProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     return (
-        <BLEContext.Provider value = {{ device }}>
-            {children}
-        </BLEContext.Provider>
+      <BLEContext.Provider value={{
+        device,
+        setDevice,
+        serviceUUID,
+        setServiceUUID,
+        characteristicUUID,
+        setCharacteristicUUID,
+      }}>
+        {children}
+      </BLEContext.Provider>
     );
 };

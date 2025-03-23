@@ -1,23 +1,25 @@
+// Imports dependencies.
+import { useContext } from 'react';
 import { Dimensions, StyleSheet } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
-
-import EditScreenInfo from '@/components/EditScreenInfo';
 import { Text, View } from '@/components/Themed';
 
+// Imports app service and hook.
+import { BLEContext } from '@/services/BLEContext';
+import { usePostureData } from '@/hooks/usePostureData'; 
+
+
+// Global variables.
 const screenWidth = Dimensions.get("window").width;
 const screenHeight = Dimensions.get("window").height;
 
-// Import data from persistent storage solution. (DB)
-const data = {
-  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-  datasets: [
-    {
-      data: [20, 45, 28, 80, 99, 43],
-      strokeWidth: 2, // optional
-    },
-  ],
+// Time format for data timestamps.
+const formatTime = (iso: string) => {
+  const date = new Date(iso);
+  return `${date.getMinutes()}:${String(date.getSeconds()).padStart(2, '0')}`;
 };
 
+// Configuration settings for graph.
 const chartConfig = {
   backgroundColor: "#e26a00",
   backgroundGradientFrom: "#fb8c00",
@@ -35,36 +37,63 @@ const chartConfig = {
   },
 };
 
+
+// TODO: Import data from persistent storage solution. (DB)
+
+// Expo tab two function.
 export default function TabTwoScreen() {
+  
+  // Function-scoped variables.
+  const { device } = useContext(BLEContext);
+  const { history } = usePostureData(device);
+  
+  // Maps history onto data points for graph representation.
+  const data = {
+    labels: history.map((p, i) =>
+      i % 10 === 0 ? formatTime(p.timestamp) : '' // space labels out
+    ),
+    datasets: [
+      {
+        data: history.map(p => p.az1 ?? 0),
+        strokeWidth: 2,
+      },
+    ],
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Your Posture Trends</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      
-      
-      <LineChart 
-        data = {data}
-        width={screenWidth*0.9}
-        height={screenHeight*0.45}
-        chartConfig={chartConfig}
-        style={styles.chart}
-      />
-    
+
+      {device ? (
+        <LineChart 
+          data={data}
+          width={screenWidth * 0.9}
+          height={screenHeight * 0.45}
+          chartConfig={chartConfig}
+          style={styles.chart}
+        />
+      ) : (
+        <Text>No BLE-device currently connected to your mobile device</Text>
+      )}
     </View>
   );  
 }
-  // above LineChart
-  // <EditScreenInfo path="app/(tabs)/two_trends.tsx" /> 
 
+
+// Stylesheet containing styles for tab two.
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 20,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 40,
   },
   title: {
-    fontSize: 25,
+    fontSize: 22,
     fontWeight: 'bold',
+    marginBottom: 24,
+    textAlign: 'center',
   },
   separator: {
     marginVertical: 30,
