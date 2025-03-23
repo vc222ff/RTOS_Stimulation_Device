@@ -24,7 +24,7 @@ export default function DeviceScreen() {
     setFoundDevices([]);
     setIsScanning(true);
     const seen = new Set<string>();
-
+    
     BLEService.startScan((found) => {
       if (!seen.has(found.id)) {
         seen.add(found.id);
@@ -49,7 +49,7 @@ export default function DeviceScreen() {
     device?.cancelConnection();
     setDevice(null);
   };
-
+  
   
   return (
     <View style={styles.container}>
@@ -71,20 +71,27 @@ export default function DeviceScreen() {
           <Text style={styles.uuidValue}>{serviceUUID || 'Not set'}</Text>
 
           <Button title={isScanning ? "Scanning..." : "Scan for Devices"} onPress={startScan} />
-          
+
           {foundDevices.length > 0 && (
             <FlatList
               data={foundDevices}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.deviceItem}
-                  onPress={() => connectToDevice(item)}
-                >
-                  <Text style={styles.deviceName}>{item.name || 'Unnamed Device'}</Text>
-                  <Text style={styles.deviceId}>{item.id}</Text>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const isPostureDevice = item.name?.toLowerCase().includes('pico') || false;
+
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.deviceItem,
+                      isPostureDevice && { backgroundColor: '#d0f0d0' }  // highlight if matched
+                    ]}
+                    onPress={() => connectToDevice(item)}
+                  >
+                    <Text style={styles.deviceName}>{item.name || 'Unnamed Device'}</Text>
+                    <Text style={styles.deviceId}>{item.id}</Text>
+                  </TouchableOpacity>
+                );
+              }}
             />
           )}
         </View>
@@ -152,5 +159,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 10,
     textAlign: 'center',
+  },
+  highlightedDevice: {
+    backgroundColor: '#e0f7e9', // light green background
+  },
+  highlightedText: {
+    color: 'green',
+    fontWeight: 'bold',
   },
 });

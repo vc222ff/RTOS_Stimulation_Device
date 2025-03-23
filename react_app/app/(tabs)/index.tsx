@@ -12,7 +12,7 @@ export default function HomeScreen() {
     <Text style={styles.title}>Welcome to the Companion App!</Text>
     <Text style={styles.text}>This app is developed for the Posture Correction Wearable Device.</Text>
 
-    <Image source={require('@/assets/images/device.png')} style={styles.image}/>
+    <Image source={require('@/assets/images/spine.png')} style={styles.image}/>
     <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
     
     </View>
@@ -44,9 +44,8 @@ const styles = StyleSheet.create({
     width: '80%',
   },
   image: {
-    height: '70%',
-    width: '45%',
-
+    height: '100%',
+    width: '20%',
   }
 });
   

@@ -40,13 +40,34 @@ const chartConfig = {
 
 // TODO: Import data from persistent storage solution. (DB)
 
+
 // Expo tab two function.
 export default function TrendsScreen() {
   
   // Function-scoped variables.
   const { device } = useContext(BLEContext);
   const { history } = usePostureData(device);
-  
+
+  // Return early if no device is connected.
+  if (!device) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Your Posture Trends</Text>
+        <Text style={{ color: 'red' }}>No BLE device connected</Text>
+      </View>
+    );
+  }
+
+  // Return early if no data has been received yet.
+  if (!history || history.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Your Posture Trends</Text>
+        <Text style={{ color: '#999' }}>Waiting for posture data...</Text>
+      </View>
+    );
+  }
+
   // Maps history onto data points for graph representation.
   const data = {
     labels: history.map((p, i) =>
@@ -63,20 +84,13 @@ export default function TrendsScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Your Posture Trends</Text>
-
-      {device ? (
-        <LineChart 
-          data={data}
-          width={screenWidth * 0.9}
-          height={screenHeight * 0.45}
-          chartConfig={chartConfig}
-          style={styles.chart}
-        />
-      ) : (
-        <Text style={{ color: device ? 'green' : 'red' }}>
-          {device ? '' : 'No BLE device connected'}
-        </Text>
-      )}
+      <LineChart 
+        data={data}
+        width={screenWidth * 0.9}
+        height={screenHeight * 0.45}
+        chartConfig={chartConfig}
+        style={styles.chart}
+      />
     </View>
   );  
 }

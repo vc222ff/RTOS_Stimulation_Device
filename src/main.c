@@ -8,6 +8,7 @@
 #include <pico/cyw43_arch.h>
 #include <pico/btstack_cyw43.h>
 #include <btstack.h>
+#include <math.h>
 
 // Imports BLE server header file.
 #include "ble_server.h"
@@ -201,9 +202,6 @@ static void calibrate_mpu(i2c_inst_t *bus ,uint8_t addr, SensorCalibration *sens
     int32_t accel_sum[3] = {0};
     int32_t gyro_sum[3] = {0};
 
-    // Boolean variable for toggling onboard LED.
-    static int led_on = true;
-
     // Collects multiple samples for more reliability.
     for (int i = 0; i < samples; i++) {
 
@@ -226,9 +224,6 @@ static void calibrate_mpu(i2c_inst_t *bus ,uint8_t addr, SensorCalibration *sens
         sensor->accelerometer_bias[j] = accel_sum[j] / samples;
         sensor->gyroscope_bias[j] = gyro_sum[j] / samples;
     }
-
-    // Turns off the built-in LED.
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 }
 
 
@@ -255,17 +250,20 @@ static void vibrate_motor(uint8_t PIN) {
 }
 
 
-// Converts float values to force measured in g (9.82 ms^2).
-//float convert_to_g(int16_t raw) {
-//    return (float)raw / 16384.0f;
-//}
+// Computes pitch angle in degrees from accelerometer readings.
+float calc_pitch_angle(int16_t ax, int16_t ay, int16_t az) {
+    
+    // Converts raw int16_t data to floating point values.
+    float axf = (float)ax / 16384.0f;
+    float ayf = (float)ay / 16384.0f;
+    float azf = (float)az / 16384.0f;
 
-// Define and use CalibrationData
-//CalibrationData calib = {
-//    .sensor1 = {{0,0,0}, {0,0,0}},
-//    .sensor2 = {{0,0,0}, {0,0,0}},
-//    .magic = CALIBRATION_MAGIC
-//};
+    // Computes angle between gravity and Z-axis (pitch angle).
+    float angle = atan2f(sqrtf(axf*axf + ayf*ayf), azf);
+    
+    // Returns . 
+    return angle * (180.0f / M_PI);
+}
 
 
 // The main posture correction task run in FreeRTOS.
@@ -274,7 +272,7 @@ static void posture_monitor_task(void *pvParameters) {
     // Retrieves calibration config from flash memory.
     calibration_config = read_calibration_from_flash();
 
-    // Checks so that calibration magic is valid.
+    // Checks so that the calibration magic is valid.
     if (calibration_config.magic != CALIBRATION_MAGIC) {
         
         // Calibrates the MPU_6050 sensors.
@@ -288,14 +286,14 @@ static void posture_monitor_task(void *pvParameters) {
         save_calibration_to_flash(&calibration_config);
     }
 
-
     // Defines vibration cooldown variables.
+    static const TickType_t vibration_cooldown = pdMS_TO_TICKS(2000);  // 2s cooldown
     static TickType_t last_vibration_time = 0;
-    const TickType_t vibration_cooldown = pdMS_TO_TICKS(2000);  // 2s cooldown
 
-    // Force threshold measured in g-forces.
-    const int16_t posture_threshold = 0.3;
-    
+    // Thresholds for upper and lower spine pitch angles in degrees.
+    const float angle_upper_threshold = 25.0f;
+    const float angle_lower_threshold = 25.0f;
+
     // Boolean variable for toggling onboard LED.
     static int led_on = true;
 
@@ -314,36 +312,30 @@ static void posture_monitor_task(void *pvParameters) {
         read_temperature(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, &temperature_1);
         read_temperature(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, &temperature_2);
 
-        // Vibrates the onboard motor.
-        vibrate_motor(VIBRATION_MOTOR_VCC);
+        // Computes the pitch angles for both sensors.
+        float angle_upper = calc_pitch_angle(acceleration_1[0], acceleration_1[1], acceleration_1[2]);
+        float angle_lower = calc_pitch_angle(acceleration_2[0], acceleration_2[1], acceleration_2[2]);
+
+        // Defines thresholds for bad upper and lower posture angles.
+        bool bad_posture_threshold = angle_upper > angle_upper_threshold || angle_lower > angle_lower_threshold;
+        
+        // Checks if posture is outside of posture angle threshold or not.
+        if (bad_posture_threshold && (xTaskGetTickCount() - last_vibration_time > vibration_cooldown)) {
+            
+            // Activates the vibration motor component. 
+            printf("Warning: Bad Posture Detected!\n");
+            vibrate_motor(VIBRATION_MOTOR_VCC);
+
+            // Updates last vibration time.
+            last_vibration_time = xTaskGetTickCount();
+        }
 
         // Inverts the onboard LED to show processing.
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
         led_on = !led_on;
 
-        // Prints results.
-        //printf("MPU1: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax1_g, ay1_g, az1_g);
-        //printf("MPU2: X=%.2f g, Y=%.2f g, Z=%.2f g\n", ax2_g, ay2_g, az2_g);
-
-        // Checks if posture is above the threshold.
-        //if ((ax1_g > posture_threshold || ay1_g > posture_threshold ||
-        //    ax2_g > posture_threshold || ay2_g > posture_threshold) &&
-        //    (xTaskGetTickCount() - last_vibration_time > vibration_cooldown)) {
-        //
-        //    // Vibrates the motors
-        //    printf("Warning: Bad Posture Detected!\n");
-        //    vibrate_motor(VIBRATION_MOTOR_VCC);
-        //
-        //    // Updates last vibration time
-        //    last_vibration_time = xTaskGetTickCount();
-        //
-        //} else {
-        //
-        //    printf("Posture OK\n");
-        //}
-
         // Adds a delay to reading.
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 

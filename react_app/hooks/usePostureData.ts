@@ -60,20 +60,17 @@ export function usePostureData(device: Device | null) {
             if (characteristic?.value) {
               const decoded = Buffer.from(characteristic.value, 'base64').toString('utf-8');
               const parsed = parsePostureData(decoded);
-              
-              // Build entry with timestamp for data.
+
               const entry = {
                 ...parsed,
                 timestamp: new Date().toISOString(),
               };
 
-              // Updates history with timestamped entry.
               setHistory(prev => {
                 const next = [...prev, entry];
                 return next.length > 50 ? next.slice(-50) : next;
               });
-              
-              // Updates current value.
+
               setPostureData(entry);
             }
           }
