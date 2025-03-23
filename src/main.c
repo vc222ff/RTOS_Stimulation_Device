@@ -41,6 +41,7 @@
 static int16_t acceleration_1[3], acceleration_2[3];                            // 16-bit signed integer arrays for acceleration values.
 static int16_t gyroscope_1[3], gyroscope_2[3];                                  // 16-bit signed integer arrays for gyroscope values.
 static int16_t temperature_1, temperature_2;                                    // 16-bit signed integer for temperature values.
+static float pitch_angle_1, pitch_angle_2;                                      // Floating point values for sensor pitch angles.
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;  // Structure for handling HCI events.
 static btstack_timer_source_t ble_notify_timer;                                 // BTstack software timer for notifications.
@@ -54,12 +55,12 @@ static void ble_handler(struct btstack_timer_source *ts) {
    
     // Updates content of BLE data payload string.
     snprintf(data_payload, PAYLOAD_LENGTH, 
-        "ax1: %d | ay1: %d | az1: %d\ngx1: %d | gy1: %d | gz1: %d\nt1: %.2f\n\n"
-        "ax2: %d | ay2: %d | az2: %d\ngx2: %d | gy2: %d | gz2: %d\nt2: %.2f",
+        "ax1: %d | ay1: %d | az1: %d\ngx1: %d | gy1: %d | gz1: %d\nt1: %.2f | ap1: %.2f\n\n"
+        "ax2: %d | ay2: %d | az2: %d\ngx2: %d | gy2: %d | gz2: %d\nt2: %.2f | ap2: %.2f",
         acceleration_1[0], acceleration_1[1], acceleration_1[2], gyroscope_1[0], gyroscope_1[1], gyroscope_1[2], 
-        (temperature_1/340.0) + 36.53,
+        (temperature_1/340.0) + 36.53, pitch_angle_1
         acceleration_2[0], acceleration_2[1], acceleration_2[2], gyroscope_2[0], gyroscope_2[1], gyroscope_2[2], 
-        (temperature_2/340.0) + 36.53
+        (temperature_2/340.0) + 36.53, pitch_angle_2
     );
 
     // Checks if client has enabled BLE notifications.
@@ -313,11 +314,11 @@ static void posture_monitor_task(void *pvParameters) {
         read_temperature(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, &temperature_2);
 
         // Computes the pitch angles for both sensors.
-        float angle_upper = calc_pitch_angle(acceleration_1[0], acceleration_1[1], acceleration_1[2]);
-        float angle_lower = calc_pitch_angle(acceleration_2[0], acceleration_2[1], acceleration_2[2]);
+        pitch_angle_1 = calc_pitch_angle(acceleration_1[0], acceleration_1[1], acceleration_1[2]);
+        pitch_angle_2 = calc_pitch_angle(acceleration_2[0], acceleration_2[1], acceleration_2[2]);
 
         // Defines thresholds for bad upper and lower posture angles.
-        bool bad_posture_threshold = angle_upper > angle_upper_threshold || angle_lower > angle_lower_threshold;
+        bool bad_posture_threshold = pitch_angle_1 > angle_upper_threshold || pitch_angle_2 > angle_lower_threshold;
         
         // Checks if posture is outside of posture angle threshold or not.
         if (bad_posture_threshold && (xTaskGetTickCount() - last_vibration_time > vibration_cooldown)) {
