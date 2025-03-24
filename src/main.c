@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <hardware/i2c.h>
 #include <pico/stdlib.h>
+#include <pico/time.h>
 #include <pico/cyw43_arch.h>
 #include <pico/btstack_cyw43.h>
 #include <btstack.h>
@@ -41,7 +42,7 @@
 static int16_t acceleration_1[3], acceleration_2[3];                            // 16-bit signed integer arrays for acceleration values.
 static int16_t gyroscope_1[3], gyroscope_2[3];                                  // 16-bit signed integer arrays for gyroscope values.
 static int16_t temperature_1, temperature_2;                                    // 16-bit signed integer for temperature values.
-static float pitch_angle_1, pitch_angle_2;                                      // Floating point values for sensor pitch angles.
+static float comp_pitch_1 = 0, comp_pitch_2 = 0;                                // Floating point values for filtered sensor pitch angles.
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;  // Structure for handling HCI events.
 static btstack_timer_source_t ble_notify_timer;                                 // BTstack software timer for notifications.
@@ -55,12 +56,12 @@ static void ble_handler(struct btstack_timer_source *ts) {
    
     // Updates content of BLE data payload string.
     snprintf(data_payload, PAYLOAD_LENGTH, 
-        "ax1: %d | ay1: %d | az1: %d\ngx1: %d | gy1: %d | gz1: %d\nt1: %.2f | ap1: %.2f\n\n"
-        "ax2: %d | ay2: %d | az2: %d\ngx2: %d | gy2: %d | gz2: %d\nt2: %.2f | ap2: %.2f",
+        "ax1: %d | ay1: %d | az1: %d\ngx1: %d | gy1: %d | gz1: %d\nt1: %.2f | Pitch1: %.2f\n\n"
+        "ax2: %d | ay2: %d | az2: %d\ngx2: %d | gy2: %d | gz2: %d\nt2: %.2f | Pitch2: %.2f",
         acceleration_1[0], acceleration_1[1], acceleration_1[2], gyroscope_1[0], gyroscope_1[1], gyroscope_1[2], 
-        (temperature_1/340.0) + 36.53, pitch_angle_1
+        (temperature_1/340.0) + 36.53, comp_pitch_1,
         acceleration_2[0], acceleration_2[1], acceleration_2[2], gyroscope_2[0], gyroscope_2[1], gyroscope_2[2], 
-        (temperature_2/340.0) + 36.53, pitch_angle_2
+        (temperature_2/340.0) + 36.53, comp_pitch_2
     );
 
     // Checks if client has enabled BLE notifications.
@@ -271,7 +272,7 @@ float calc_pitch_angle(int16_t ax, int16_t ay, int16_t az) {
 static void posture_monitor_task(void *pvParameters) {
     
     // Retrieves calibration config from flash memory.
-    calibration_config = read_calibration_from_flash();
+    // calibration_config = read_calibration_from_flash();
 
     // Checks so that the calibration magic is valid.
     if (calibration_config.magic != CALIBRATION_MAGIC) {
@@ -290,13 +291,32 @@ static void posture_monitor_task(void *pvParameters) {
     // Defines vibration cooldown variables.
     static const TickType_t vibration_cooldown = pdMS_TO_TICKS(2000);  // 2s cooldown
     static TickType_t last_vibration_time = 0;
-
+    
+    // Boolean variable for toggling onboard LED.
+    static int led_on = true;
+    
     // Thresholds for upper and lower spine pitch angles in degrees.
     const float angle_upper_threshold = 25.0f;
     const float angle_lower_threshold = 25.0f;
 
-    // Boolean variable for toggling onboard LED.
-    static int led_on = true;
+    // Computes initial pitch angles for both sensors.
+    //float pitch_angle_1 = calc_pitch_angle(acceleration_1[0], acceleration_1[1], acceleration_1[2]);
+    //float pitch_angle_2 = calc_pitch_angle(acceleration_2[0], acceleration_2[1], acceleration_2[2]);
+
+    // Sets inital filtered pitch as raw data for first iteration.
+    //filter_pitch_angle_1 = pitch_angle_1;
+    //filter_pitch_angle_2 = pitch_angle_2;
+
+    // Alpha value for complementary filter computation.
+    const float alpha = 0.98f;
+   
+    //
+    //comp_pitch_1 = 0.0f;
+    //comp_pitch_2 = 0.0f; 
+
+    // 
+    absolute_time_t last_time;
+    last_time = get_absolute_time();
 
     // While-true statement.
     while(1) {
@@ -313,12 +333,25 @@ static void posture_monitor_task(void *pvParameters) {
         read_temperature(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, &temperature_1);
         read_temperature(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, &temperature_2);
 
-        // Computes the pitch angles for both sensors.
-        pitch_angle_1 = calc_pitch_angle(acceleration_1[0], acceleration_1[1], acceleration_1[2]);
-        pitch_angle_2 = calc_pitch_angle(acceleration_2[0], acceleration_2[1], acceleration_2[2]);
+        // Calculates time since last pitch angle computation. 
+        absolute_time_t now = get_absolute_time();
+        float dt = to_us_since_boot(now - last_time) / 1e6f;
+        last_time = now;
+        
+        // Computes accelerometer pitch angles in deg for both sensors.
+        float pitch_angle_1 = calc_pitch_angle(acceleration_1[0], acceleration_1[1], acceleration_1[2]);
+        float pitch_angle_2 = calc_pitch_angle(acceleration_2[0], acceleration_2[1], acceleration_2[2]);
+
+        // Computes gyroscopic pitch rate in deg/s for both sensors.
+        float pitch_rate_1 = gyroscope_1[1] / 131.0f;
+        float pitch_rate_2 = gyroscope_2[1] / 131.0f;
+
+        // Filters out sensor noise using Complementary filter.
+        comp_pitch_1 = alpha * (comp_pitch_1 + pitch_rate_1 * dt) + (1.0f - alpha) * pitch_angle_1;
+        comp_pitch_2 = alpha * (comp_pitch_2 + pitch_rate_2 * dt) + (1.0f - alpha) * pitch_angle_2;
 
         // Defines thresholds for bad upper and lower posture angles.
-        bool bad_posture_threshold = pitch_angle_1 > angle_upper_threshold || pitch_angle_2 > angle_lower_threshold;
+        bool bad_posture_threshold = comp_pitch_1 > angle_upper_threshold || comp_pitch_2 > angle_lower_threshold;
         
         // Checks if posture is outside of posture angle threshold or not.
         if (bad_posture_threshold && (xTaskGetTickCount() - last_vibration_time > vibration_cooldown)) {
