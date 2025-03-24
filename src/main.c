@@ -309,7 +309,7 @@ static void posture_monitor_task(void *pvParameters) {
     
     // Thresholds for upper and lower spine pitch angles in degrees.
     const float angle_upper_threshold = 25.0f;
-    const float angle_lower_threshold = -25.0f;
+    const float angle_lower_threshold = 25.0f;
 
     // Alpha value for complementary filter computation.
     const float alpha = 0.95f;
