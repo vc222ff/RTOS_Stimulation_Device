@@ -42,6 +42,7 @@
 static int16_t acceleration_1[3], acceleration_2[3];                            // 16-bit signed integer arrays for acceleration values.
 static int16_t gyroscope_1[3], gyroscope_2[3];                                  // 16-bit signed integer arrays for gyroscope values.
 static int16_t temperature_1, temperature_2;                                    // 16-bit signed integer for temperature values.
+static float g_forces_1[3], g_forces_2[3];                                      // Floating point values for acceleration in g (9.82 ms^2).
 static float comp_pitch_1 = 0, comp_pitch_2 = 0;                                // Floating point values for filtered sensor pitch angles.
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;  // Structure for handling HCI events.
@@ -56,11 +57,13 @@ static void ble_handler(struct btstack_timer_source *ts) {
    
     // Updates content of BLE data payload string.
     snprintf(data_payload, PAYLOAD_LENGTH, 
-        "ax1: %d | ay1: %d | az1: %d\ngx1: %d | gy1: %d | gz1: %d\nt1: %.2f | Pitch1: %.2f\n\n"
-        "ax2: %d | ay2: %d | az2: %d\ngx2: %d | gy2: %d | gz2: %d\nt2: %.2f | Pitch2: %.2f",
-        acceleration_1[0], acceleration_1[1], acceleration_1[2], gyroscope_1[0], gyroscope_1[1], gyroscope_1[2], 
+        "X1: %.2f | Y1: %.2f | Z1: %.2f\nGX1: %d | GY1: %d | GZ1: %d\nT1: %.2f | Pitch1: %.2f°\n\n"
+        "X2: %.2f | Y2: %.2f | Z2: %.2f\nGX2: %d | GY2: %d | GZ2: %d\nT2: %.2f | Pitch2: %.2f°",
+        g_forces_1[0], g_forces_1[1], g_forces_1[2],
+        gyroscope_1[0], gyroscope_1[1], gyroscope_1[2], 
         (temperature_1/340.0) + 36.53, comp_pitch_1,
-        acceleration_2[0], acceleration_2[1], acceleration_2[2], gyroscope_2[0], gyroscope_2[1], gyroscope_2[2], 
+        g_forces_2[0], g_forces_2[1], g_forces_2[2], 
+        gyroscope_2[0], gyroscope_2[1], gyroscope_2[2], 
         (temperature_2/340.0) + 36.53, comp_pitch_2
     );
 
@@ -252,27 +255,11 @@ static void vibrate_motor(uint8_t PIN) {
 }
 
 
-// Computes pitch angle in degrees from accelerometer readings.
-float calc_pitch_angle(int16_t ax, int16_t ay, int16_t az) {
+// Retrieves or creates a new calibration config for flash_storage.
+static void check_calibration() {
     
-    // Converts raw int16_t data to floating point values.
-    float axf = (float)ax / 16384.0f;
-    float ayf = (float)ay / 16384.0f;
-    float azf = (float)az / 16384.0f;
-
-    // Computes angle between gravity and Z-axis (pitch angle).
-    float angle = atan2f(sqrtf(axf*axf + ayf*ayf), azf);
-    
-    // Returns . 
-    return angle * (180.0f / M_PI);
-}
-
-
-// The main posture correction task run in FreeRTOS.
-static void posture_monitor_task(void *pvParameters) {
-    
-    // Retrieves calibration config from flash memory.
-    // calibration_config = read_calibration_from_flash();
+    // Extracts calibration config from flash memory.
+    calibration_config = read_calibration_from_flash();
 
     // Checks so that the calibration magic is valid.
     if (calibration_config.magic != CALIBRATION_MAGIC) {
@@ -287,7 +274,32 @@ static void posture_monitor_task(void *pvParameters) {
         // Saves calibration config to flash memory.
         save_calibration_to_flash(&calibration_config);
     }
+}
 
+
+// Computes upper pitch angle in deg from accelerometer readings.
+float comp_pitch_upper(float ax, float ay, float az) {
+    float angle = atan2f(ay, az) * (180.0f / M_PI);
+    return angle + 90.0f;       // Offset upright position to 0°.
+}
+
+
+// Computes lower pitch angle in deg from accelerometer readings.
+float comp_pitch_lower(float ax, float ay, float az) {
+    float angle = atan2f(-ay, az) * (180.0f / M_PI);
+    return - (angle - 90.0f);      // Inverts angle & offsets upright position to 0°.
+}
+
+
+// Converts int-16t raw accelerometer data into g-forces (9.82ms^2).
+float comp_g_force(int16_t val) {
+    return (float)val / 16384.0f;
+}
+
+
+// The main posture correction task run in FreeRTOS.
+static void posture_monitor_task(void *pvParameters) {
+    
     // Defines vibration cooldown variables.
     static const TickType_t vibration_cooldown = pdMS_TO_TICKS(2000);  // 2s cooldown
     static TickType_t last_vibration_time = 0;
@@ -297,24 +309,12 @@ static void posture_monitor_task(void *pvParameters) {
     
     // Thresholds for upper and lower spine pitch angles in degrees.
     const float angle_upper_threshold = 25.0f;
-    const float angle_lower_threshold = 25.0f;
-
-    // Computes initial pitch angles for both sensors.
-    //float pitch_angle_1 = calc_pitch_angle(acceleration_1[0], acceleration_1[1], acceleration_1[2]);
-    //float pitch_angle_2 = calc_pitch_angle(acceleration_2[0], acceleration_2[1], acceleration_2[2]);
-
-    // Sets inital filtered pitch as raw data for first iteration.
-    //filter_pitch_angle_1 = pitch_angle_1;
-    //filter_pitch_angle_2 = pitch_angle_2;
+    const float angle_lower_threshold = -25.0f;
 
     // Alpha value for complementary filter computation.
-    const float alpha = 0.98f;
+    const float alpha = 0.95f;
    
-    //
-    //comp_pitch_1 = 0.0f;
-    //comp_pitch_2 = 0.0f; 
-
-    // 
+    // Gets the current absolute time.
     absolute_time_t last_time;
     last_time = get_absolute_time();
 
@@ -332,6 +332,14 @@ static void posture_monitor_task(void *pvParameters) {
         // Retrieves temperature readings from both sensors.
         read_temperature(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, &temperature_1);
         read_temperature(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, &temperature_2);
+        
+        // Converts and sorts raw accelerometer readings into g-forces.
+        g_forces_1[0] = comp_g_force(acceleration_1[1]);
+        g_forces_1[1] = comp_g_force(-acceleration_1[0]);
+        g_forces_1[2] = comp_g_force(acceleration_1[2]);
+        g_forces_2[0] = comp_g_force(-acceleration_2[1]);
+        g_forces_2[1] = comp_g_force(acceleration_2[0]);
+        g_forces_2[2] = comp_g_force(acceleration_2[2]);
 
         // Calculates time since last pitch angle computation. 
         absolute_time_t now = get_absolute_time();
@@ -339,8 +347,8 @@ static void posture_monitor_task(void *pvParameters) {
         last_time = now;
         
         // Computes accelerometer pitch angles in deg for both sensors.
-        float pitch_angle_1 = calc_pitch_angle(acceleration_1[0], acceleration_1[1], acceleration_1[2]);
-        float pitch_angle_2 = calc_pitch_angle(acceleration_2[0], acceleration_2[1], acceleration_2[2]);
+        float pitch_angle_1 = comp_pitch_upper(g_forces_1[0], g_forces_1[1], g_forces_1[2]);
+        float pitch_angle_2 = comp_pitch_lower(g_forces_2[0], g_forces_2[1], g_forces_2[2]);
 
         // Computes gyroscopic pitch rate in deg/s for both sensors.
         float pitch_rate_1 = gyroscope_1[1] / 131.0f;
@@ -351,7 +359,9 @@ static void posture_monitor_task(void *pvParameters) {
         comp_pitch_2 = alpha * (comp_pitch_2 + pitch_rate_2 * dt) + (1.0f - alpha) * pitch_angle_2;
 
         // Defines thresholds for bad upper and lower posture angles.
-        bool bad_posture_threshold = comp_pitch_1 > angle_upper_threshold || comp_pitch_2 > angle_lower_threshold;
+        bool bad_posture_threshold = 
+            fabsf(comp_pitch_1) > angle_upper_threshold ||
+            fabsf(comp_pitch_2) > angle_lower_threshold;
         
         // Checks if posture is outside of posture angle threshold or not.
         if (bad_posture_threshold && (xTaskGetTickCount() - last_vibration_time > vibration_cooldown)) {
@@ -365,8 +375,12 @@ static void posture_monitor_task(void *pvParameters) {
         }
 
         // Inverts the onboard LED to show processing.
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
-        led_on = !led_on;
+        static int blink_counter = 0;
+        if (++blink_counter >= 30) {
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
+            led_on = !led_on;
+            blink_counter = 0;
+        }
 
         // Adds a delay to reading.
         vTaskDelay(pdMS_TO_TICKS(10));
