@@ -87,7 +87,6 @@ The repository is structured and organized in the following way.
         ├── PiicoDev.py
         └── PiicoDev_Unified.py
 ```
-*Directory structure after compilation:*
 
 <br>
 
@@ -127,6 +126,8 @@ Once compilation is done, we can find a QR-code and an URL link in the command l
 ## PDF Report
 The PDF report can be found in the following link: 
 [PDF report](vc222ff_2dt304_final_report.pdf)
+
+<br>
 
 <br>
 
