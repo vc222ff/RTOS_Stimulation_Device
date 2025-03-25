@@ -1,3 +1,5 @@
+apk_build/
+c_build/
 build/
 old/
 .vscode/

@@ -2,21 +2,23 @@
 Members: Victor Cajfeldt<br>
 Program: Computer Engineering<br>
 Course: 2DT304<br>
-Date of latest submission: 2025-03-28<br>
+Date of latest submission: 2025-04-04<br>
 
 <br>
 
-This README document is divided into three sections: ??? Compilation of java files ???, how to start the TFTP server and the PDF report for the project.
+This README document is divided into four sections: Project structure, Embedded C program: Compilation and start, Mobile App: APK Compilation for android and the PDF report for the program.
 
 ## Instructions for the device
 
 **Table of contents:**<br>
-[**1. ????**](#???)<br> 
-[**2. ????**](#???)<br> 
-[**3. ????**](#???)<br>
+[**1. Project Structure**](#project-structure) <br> 
+[**2. Embedded C program: Compilation and start**](#installation-and-start-of-embedded-c-program)<br> 
+[**3. Mobile App: APK Compilation for Android**](#apk-compilation-of-react-native-application)<br> 
+[**4. PDF Report**](#???)<br>
 
 
-*Directory structure after compilation:*
+## Project structure
+The repository is structured and organized in the following way. 
 ```ascii
 .
 ├── build
@@ -69,133 +71,55 @@ This README document is divided into three sections: ??? Compilation of java fil
     ├── server_common.h
     └── temp_sensor.gatt
 ```
-
-
-<br><br><br><br><br>
-
-
-
-
-
-
-
-
-# Instructions for TFTP Server 
-Members: Victor Cajfeldt <br>
-Program: Computer Engineering<br>
-Course: 1DV702<br>
-Date of latest submission: 2024-06-09<br>
-<br>
-This guide is divided into three sections: Compilation of java files, how to start the TFTP server and the PDF report for the project.
-
-**Table of contents:** <br>
-[**1. Compilation**](#compilation) <br> 
-[**2. Running the TFTP Server**](#running-the-tftp-server)<br> 
-[**3. PDF Report**](#pdf-report) <br>
-
-
-## Compilation
-To compile the TFTP server we start by navigating to the root folder, which for this project is the folder "assignment3". We open up the intergrated terminal in the folder and run the following command:<br>
-
-
-*Compile command:*
-```bash 
-javac -d bin/ src/TFTPServer.java
-```
-This command compiles the main class "TFTPServer" and places it in bin/ folder relative from current directory, "assignment3".
-
-
 *Directory structure after compilation:*
-```ascii
-.
-├── build
-│   ├── CMakeCache.txt
-│   ├── CMakeFiles
-│   ├── cmake_install.cmake
-│   ├── compile_commands.json
-│   ├── elf2uf2
-│   ├── FREERTOS_KERNEL
-│   ├── generated
-│   ├── Makefile
-│   ├── pico-sdk
-│   ├── pioasm
-│   └── src
-├── CMakeLists.txt
-├── c_tests
-│   └── I2Ctest.c
-├── doc
-│   ├── img
-│   ├── Midterm Presentation.pdf
-│   └── pi-pico-w-datasheet.pdf
-├── lib
-│   ├── FreeRTOS-Kernel
-│   └── pico-sdk
-├── LICENSE
-├── micropython_tests
-│   ├── ble_advertising.py
-│   ├── ble_uart_peripheral.py
-│   ├── Bluetooth_debug.py
-│   ├── I2C_loop_test.py
-│   ├── I2C_scan.py
-│   ├── MicroPythonMain.py
-│   ├── PiicoDev_MPU6050.py
-│   ├── PiicoDev.py
-│   └── PiicoDev_Unified.py
-├── pico_sdk_import.cmake
-├── react_app
-│   ├── app
-│   ├── app.json
-│   ├── assets
-│   ├── components
-│   ├── constants
-│   ├── expo-env.d.ts
-│   ├── node_modules
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── patches
-│   ├── services
-│   └── tsconfig.json
-├── README.md
-└── src
-    ├── CMakeLists.txt
-    ├── FreeRTOSConfig.h
-    ├── main2.c
-    └── main.c
-```
-After compiling the .java files your project directory will resemble the following structure.
 
+<br>
 
-## Running the TFTP server
-To start running the Trivial File Transfer Server we navigate to the root directory "assignment3" and open the terminal. Here we execute the following commands to start the TFTP server:
+## Installation and start of embedded C program 
+In order to compile the C project for the Raspberry Pi Pico WH we use the following commands.
 
-
-*Simple execution:*
 ```bash
-java -cp .:bin TFTPServer
+# First we create a c_build directory and cd into it.
+mkdir c_build && cd c_build
+
+# Once inside we create a new CMake tools file.
+cmake ..
+
+# Then we compile the program using the make command.
+make
 ```
-Uses standard settings, port 4970 and paths "public/read" & "public/write".
+
+Once the project is compiled without errors, we can find a .uf2 binary file in the path c_build/src/c_rtos_posture.uf2. This file can be transferred to the Raspberry Pi Pico for autonomous execution. 
+
+<br>
+
+## APK compilation of React Native Application
+To compile an .apk file for the mobile application we can use the following commmands.
+
+```bash
+# Opens React Native subdirectory.
+cd react-app
+
+# Runs NPM command for compiling preview version for Android devices.
+npm run build_apk
+```
+
+Once compilation is done, we can find a QR-code and an URL link in the command line that can be scanned on the android device or entered manually in order to install the mobile app.
+
+<br>
 
 ## PDF Report
-The report regarding the project can be found here: 
-[PDF report](vc222ff_1dv701_assign3.docx.pdf)
+The PDF report can be found in the following link: 
+[PDF report](vc222ff_2dt304_final_report.pdf)
 
-<br><br><br><br>
+<br>
 
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.lnu.se/vc222ff/2dt304-wearable-posture-correction-device.git
-git branch -M main
-git push -uf origin main
-```
+------
 
 
 
+
+<br><br><br><br><br><br><br><br><br><br>
 
 
 

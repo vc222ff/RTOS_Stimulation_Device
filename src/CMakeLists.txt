@@ -31,7 +31,7 @@ target_link_libraries(${ProjectName}
 # Generates a .h header file from GATT file for BLE service.
 pico_btstack_make_gatt_header(${ProjectName} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/posture_monitor.gatt")
 
-# Modify the below lines to enable/disable output over UART/USB.
+# Enables or disables terminal output over UART or serial USB.
 pico_enable_stdio_uart(${ProjectName} 0)
 pico_enable_stdio_usb(${ProjectName} 1)
 

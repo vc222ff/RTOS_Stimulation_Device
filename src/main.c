@@ -77,7 +77,7 @@ static void ble_handler(struct btstack_timer_source *ts) {
     btstack_run_loop_add_timer(ts);
 }
 
-               
+
 // Initializes Bluetooth Low Energy BLE with its related components & protocols.
 static void init_ble() {
     

@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "build_apk": "eas build --platform android --profile preview",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
