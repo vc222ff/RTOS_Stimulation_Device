@@ -6,7 +6,7 @@ Date of latest submission: 2025-04-04<br>
 
 <br>
 
-This README document is divided into four sections: Project structure, Embedded C program: Compilation and start, Mobile App: APK Compilation for android and the PDF report for the program.
+This README document is divided into four sections: Project structure, Embedded C program: Compilation and start, Mobile App: APK Compilation for android and the PDF report for the project.
 
 ## Instructions for the device
 
@@ -14,7 +14,7 @@ This README document is divided into four sections: Project structure, Embedded 
 [**1. Project Structure**](#project-structure) <br> 
 [**2. Embedded C program: Compilation and start**](#installation-and-start-of-embedded-c-program)<br> 
 [**3. Mobile App: APK Compilation for Android**](#apk-compilation-of-react-native-application)<br> 
-[**4. PDF Report**](#???)<br>
+[**4. PDF Report**](#pdf-report)<br>
 
 
 ## Project structure
