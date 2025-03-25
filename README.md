@@ -21,55 +21,71 @@ This README document is divided into four sections: Project structure, Embedded 
 The repository is structured and organized in the following way. 
 ```ascii
 .
-├── build
+├── apk_build
+├── bin
+│   ├── application-v.1.0.2.apk
+│   └── c_rtos_posture.uf2
+├── c_build
 ├── CMakeLists.txt
-├── c_tests
-│   └── I2Ctest.c
 ├── doc
-│   ├── img
-│   │   ├── pi-pico-w-h-Pinout.jpg
-│   │   ├── raspberry-pi-pico-wh-image.jpg
-│   │   └── schematics-pi-pico-W.png
-│   ├── Midterm Presentation.pdf
-│   └── pi-pico-w-datasheet.pdf
 ├── lib
 │   ├── FreeRTOS-Kernel
 │   └── pico-sdk
-├── LICENSE
-├── micropython_tests
-│   ├── ble_advertising.py
-│   ├── ble_uart_peripheral.py
-│   ├── Bluetooth_debug.py
-│   ├── I2C_loop_test.py
-│   ├── I2C_scan.py
-│   ├── MicroPythonMain.py
-│   ├── PiicoDev_MPU6050.py
-│   ├── PiicoDev.py
-│   └── PiicoDev_Unified.py
 ├── pico_sdk_import.cmake
 ├── react_app
 │   ├── app
+│   │   ├── +html.tsx
+│   │   ├── _layout.tsx
+│   │   ├── modal.tsx
+│   │   ├── +not-found.tsx
+│   │   └── (tabs)
+│   │       ├── device.tsx
+│   │       ├── index.tsx
+│   │       ├── _layout.tsx
+│   │       ├── settings.tsx
+│   │       └── trends.tsx
 │   ├── app.json
 │   ├── assets
 │   ├── components
 │   ├── constants
+│   ├── eas.json
 │   ├── expo-env.d.ts
+│   ├── hooks
+│   │   └── usePostureData.ts
 │   ├── node_modules
 │   ├── package.json
 │   ├── package-lock.json
 │   ├── patches
 │   ├── services
+│   │   ├── BLEContext.tsx
+│   │   └── BLEService.ts
 │   └── tsconfig.json
 ├── README.md
-└── src
-    ├── btstack_config.h
-    ├── CMakeLists.txt
-    ├── FreeRTOSConfig.h
-    ├── lwipopts.h
-    ├── main.c
-    ├── server_common.c
-    ├── server_common.h
-    └── temp_sensor.gatt
+├── src
+│   ├── ble_server.c
+│   ├── ble_server.h
+│   ├── btstack_config.h
+│   ├── CMakeLists.txt
+│   ├── flash_storage.c
+│   ├── flash_storage.h
+│   ├── FreeRTOSConfig.h
+│   ├── lwipopts.h
+│   ├── main.c
+│   └── posture_monitor.gatt
+└── test
+    ├── c_tests
+    │   ├── I2Ctest.c
+    │   └── pico_usb_test
+    └── micropython_tests
+        ├── ble_advertising.py
+        ├── ble_uart_peripheral.py
+        ├── Bluetooth_debug.py
+        ├── I2C_loop_test.py
+        ├── I2C_scan.py
+        ├── MicroPythonMain.py
+        ├── PiicoDev_MPU6050.py
+        ├── PiicoDev.py
+        └── PiicoDev_Unified.py
 ```
 *Directory structure after compilation:*
 
