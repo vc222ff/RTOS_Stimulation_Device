@@ -1,7 +1,9 @@
-# 2DT304 - Wearable Posture Correction Device
+# RTOS Stimulation Device for Posture Correction
 Members: Victor Cajfeldt & Sanaa Abdoulkader<br>
 Program: Computer Engineering<br>
+Course: 2DT00E (Bachelor's Thesis)
 Date of latest submission: 2025-MM-DD<br>
+
 
 This README document is divided into four sections: Project structure, Embedded C program: Compilation and start, Mobile App: APK Compilation for android and the PDF report for the project.
 
