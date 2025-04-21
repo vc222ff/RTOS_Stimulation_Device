@@ -1,9 +1,7 @@
 # 2DT304 - Wearable Posture Correction Device
-Members: Victor Cajfeldt<br>
+Members: Victor Cajfeldt & Sanaa Abdoulkader<br>
 Program: Computer Engineering<br>
-Course: 2DT304<br>
-Date of latest submission: 2025-04-04<br>
-
+Date of latest submission: 2025-MM-DD<br>
 
 This README document is divided into four sections: Project structure, Embedded C program: Compilation and start, Mobile App: APK Compilation for android and the PDF report for the project.
 
