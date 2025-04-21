@@ -1,4 +1,4 @@
-# RTOS Stimulation Device for Posture Correction
+# Thesis Project - RTOS Stimulation Device for Posture Correction
 Members: Victor Cajfeldt & Sanaa Abdoulkader<br>
 Program: Computer Engineering<br>
 Course: 2DT00E (Bachelor's Thesis)<br>
