@@ -43,11 +43,13 @@ static int16_t acceleration_1[3], acceleration_2[3];                            
 static int16_t gyroscope_1[3], gyroscope_2[3];                                  // 16-bit signed integer arrays for gyroscope values.
 static int16_t temperature_1, temperature_2;                                    // 16-bit signed integer for temperature values.
 static float g_forces_1[3], g_forces_2[3];                                      // Floating point values for acceleration in g (9.82 ms^2).
+static float baseline_pitch_1 = 0, baseline_pitch_2 = 0;                        // Floating point values for calibrated baseline pitch angles.
 static float comp_pitch_1 = 0, comp_pitch_2 = 0;                                // Floating point values for filtered sensor pitch angles.
+static float alpha = 0.95f;                                                     // Floating point value for alpha in complementary filter.
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;  // Structure for handling HCI events.
 static btstack_timer_source_t ble_notify_timer;                                 // BTstack software timer for notifications.
-static const int ble_notify_delay = 3000;                                       // Delay between the notifications.
+static const int ble_notify_delay = 2000;                                       // Delay between the notifications.
 
 static CalibrationData calibration_config;                                      // Structure for calibration configuration from flash memory. 
 
@@ -203,7 +205,7 @@ static void calibrate_mpu(i2c_inst_t *bus ,uint8_t addr, SensorCalibration *sens
     // Arrays for raw sensor reading data.
     int16_t accel_raw[3], gyro_raw[3];
     
-    // Arrays for sum of sensor reading data.
+    // Arrays for sum of sensor pitch data.
     int32_t accel_sum[3] = {0};
     int32_t gyro_sum[3] = {0};
 
@@ -229,6 +231,75 @@ static void calibrate_mpu(i2c_inst_t *bus ,uint8_t addr, SensorCalibration *sens
         sensor->accelerometer_bias[j] = accel_sum[j] / samples;
         sensor->gyroscope_bias[j] = gyro_sum[j] / samples;
     }
+}
+
+
+// Calibrates personalized baseline pitch angles for posture detection logic.
+static void calibrate_baseline(i2c_inst_t *bus1 ,uint8_t addr1, i2c_inst_t *bus2 ,uint8_t addr2) {
+    
+    // Sample amount for calibration. 
+    const int samples = 1000;               // 1000 * 10 = 10 000 ms (samples * sample rate = elapsed time).           
+
+    // Arrays for sum of sensor pitch readings .
+    int32_t pitch_upper = 0;
+    int32_t pitch_lower = 0;
+
+    // Gets the current absolute time.
+    absolute_time_t last_time;
+    last_time = get_absolute_time();
+
+    // Collects multiple samples for more reliability.
+    for (int i = 0; i < samples; i++) {
+
+        // Retrieves sensor readings.
+        read_accelerometer(bus1, addr1, acceleration_1, NULL);
+        read_accelerometer(bus2, addr2, acceleration_2, NULL);
+        read_gyroscope(bus1, addr1, gyroscope_1, NULL);
+        read_gyroscope(bus2, addr2, gyroscope_2, NULL);
+        
+        // Converts raw readings to g-forces.
+        g_forces_1[0] = comp_g_force(acceleration_1[1]);            // MPU-6050 sensor-axes. 2x (x,y,z).
+        g_forces_1[1] = comp_g_force(-acceleration_1[0]);           // Here it is important to account for sensor missalignment.
+        g_forces_1[2] = comp_g_force(acceleration_1[2]);            // (Important to remember to change w/ new design iteration!)
+        g_forces_2[0] = comp_g_force(-acceleration_2[1]);                
+        g_forces_2[1] = comp_g_force(acceleration_2[0]);            // This function could be changed to use arrays... ?!
+        g_forces_2[2] = comp_g_force(acceleration_2[2]);            // (To reduce code duplication.)
+
+        // Calculates time since last pitch angle computation. 
+        absolute_time_t now = get_absolute_time();
+        float dt = to_us_since_boot(now - last_time) / 1e6f;
+        last_time = now;
+
+        // Computes accelerometer pitch angle (deg) and gyro pitch rate (deg/s).
+        float pitch_angle1 = comp_pitch_upper(g_forces_1[0], g_forces_1[1], g_forces_1[2]);
+        float pitch_angle2 = comp_pitch_lower(g_forces_2[0], g_forces_2[1], g_forces_2[2]);
+        float pitch_rate1 = gyroscope_1[1] / 131.0f;
+        float pitch_rate2 = gyroscope_2[1] / 131.0f;
+
+        // Applies Complementary filter to filter out sensor noise.
+        comp_pitch_1 = alpha * (comp_pitch_1 + pitch_rate1 * dt) + (1.0f - alpha) * pitch_angle1;
+        comp_pitch_2 = alpha * (comp_pitch_2 + pitch_rate2 * dt) + (1.0f - alpha) * pitch_angle2;
+
+        // Adds pitch readings to sum of all values.
+        pitch_upper += comp_pitch_1;
+        pitch_lower += comp_pitch_2;
+
+        // Small delay between readings.
+        vTaskDelay(pdMS_TO_TICKS(10));              // Elapsed time = 10 000 ms = 10 s.
+    }
+
+    // Resets variable arrays for use in non-calibration readings.
+    memset(acceleration_1, 0 , sizeof(acceleration_1));
+    memset(acceleration_2, 0 , sizeof(acceleration_2));
+    memset(gyroscope_1, 0 , sizeof(gyroscope_1));
+    memset(gyroscope_2, 0 , sizeof(gyroscope_2));
+    memset(g_forces_1, 0 , sizeof(g_forces_1));
+    memset(g_forces_2, 0 , sizeof(g_forces_2));
+    comp_pitch_1 = 0, comp_pitch_2 = 0;
+
+    // Stores the calibrated baseline pitch values.
+    baseline_pitch_1 = pitch_upper / samples;
+    baseline_pitch_2 = pitch_lower / samples;
 }
 
 
@@ -301,18 +372,15 @@ float comp_g_force(int16_t val) {
 static void posture_monitor_task(void *pvParameters) {
     
     // Defines vibration cooldown variables.
-    static const TickType_t vibration_cooldown = pdMS_TO_TICKS(2000);  // 2s cooldown
+    static const TickType_t vibration_cooldown = pdMS_TO_TICKS(1000);  // 1s vibration cooldown
     static TickType_t last_vibration_time = 0;
     
     // Boolean variable for toggling onboard LED.
     static int led_on = true;
     
     // Thresholds for upper and lower spine pitch angles in degrees.
-    const float angle_upper_threshold = 25.0f;
-    const float angle_lower_threshold = 25.0f;
-
-    // Alpha value for complementary filter computation.
-    const float alpha = 0.95f;
+    const float angle_upper_threshold = 15.0f;
+    const float angle_lower_threshold = 15.0f;
    
     // Gets the current absolute time.
     absolute_time_t last_time;
@@ -338,9 +406,9 @@ static void posture_monitor_task(void *pvParameters) {
         g_forces_1[1] = comp_g_force(-acceleration_1[0]);           // Here it is important to account for sensor missalignment.
         g_forces_1[2] = comp_g_force(acceleration_1[2]);            // (Important to remember to change w/ new design iteration!)
         g_forces_2[0] = comp_g_force(-acceleration_2[1]);
-        g_forces_2[1] = comp_g_force(acceleration_2[0]);
-        g_forces_2[2] = comp_g_force(acceleration_2[2]);
-
+        g_forces_2[1] = comp_g_force(acceleration_2[0]);            // This function could be changed to use arrays... ?!
+        g_forces_2[2] = comp_g_force(acceleration_2[2]);            // (To reduce code duplication...)
+        
         // Calculates time since last pitch angle computation. 
         absolute_time_t now = get_absolute_time();
         float dt = to_us_since_boot(now - last_time) / 1e6f;
@@ -359,10 +427,10 @@ static void posture_monitor_task(void *pvParameters) {
         comp_pitch_2 = alpha * (comp_pitch_2 + pitch_rate_2 * dt) + (1.0f - alpha) * pitch_angle_2;
 
         // Defines thresholds for bad upper and lower posture angles.
-        bool bad_posture_threshold = 
-            fabsf(comp_pitch_1) > angle_upper_threshold ||
-            fabsf(comp_pitch_2) > angle_lower_threshold;
-        
+        bool bad_posture_threshold =
+        fabsf(comp_pitch_1 - baseline_pitch_1) > angle_upper_threshold ||   // Uses absolute values (magnitude).
+        fabsf(comp_pitch_2 - baseline_pitch_2) > angle_lower_threshold;
+
         // Checks if posture is outside of posture angle threshold or not.
         if (bad_posture_threshold && (xTaskGetTickCount() - last_vibration_time > vibration_cooldown)) {
             
@@ -410,6 +478,9 @@ int main() {
 
     // Initalizes the vibration motor. 
     init_motor(VIBRATION_MOTOR_VCC);
+
+    // Performs the initial personalized calibration of sensors.
+    calibrate_baseline(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS);
 
     // Creates a FreeRTOS task for posture monitoring. 
     xTaskCreate(posture_monitor_task, "PostureMonitor", 1024, NULL, 1, NULL);
