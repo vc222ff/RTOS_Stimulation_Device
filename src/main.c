@@ -334,9 +334,9 @@ static void posture_monitor_task(void *pvParameters) {
         read_temperature(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, &temperature_2);
         
         // Converts and sorts raw accelerometer readings into g-forces.
-        g_forces_1[0] = comp_g_force(acceleration_1[1]);
-        g_forces_1[1] = comp_g_force(-acceleration_1[0]);
-        g_forces_1[2] = comp_g_force(acceleration_1[2]);
+        g_forces_1[0] = comp_g_force(acceleration_1[1]);            // MPU-6050 sensor-axes. 2x (x,y,z).
+        g_forces_1[1] = comp_g_force(-acceleration_1[0]);           // Here it is important to account for sensor missalignment.
+        g_forces_1[2] = comp_g_force(acceleration_1[2]);            // (Important to remember to change w/ new design iteration!)
         g_forces_2[0] = comp_g_force(-acceleration_2[1]);
         g_forces_2[1] = comp_g_force(acceleration_2[0]);
         g_forces_2[2] = comp_g_force(acceleration_2[2]);
@@ -374,7 +374,7 @@ static void posture_monitor_task(void *pvParameters) {
             last_vibration_time = xTaskGetTickCount();
         }
 
-        // Inverts the onboard LED to show processing.
+        // Inverts the onboard LED to display processing state.
         static int blink_counter = 0;
         if (++blink_counter >= 30) {
             cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
