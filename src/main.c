@@ -234,6 +234,71 @@ static void calibrate_mpu(i2c_inst_t *bus ,uint8_t addr, SensorCalibration *sens
 }
 
 
+// Initiates GPIO pin for vibration motor.
+static void init_motor(uint8_t PIN) {
+
+    // Initates pin and sets direction to output.
+    gpio_init(PIN);
+    gpio_set_dir(PIN, GPIO_OUT);
+}
+
+
+// Enables vibration motor for haptic feedback.
+static void vibrate_motor(uint8_t PIN) {
+    
+    // Starts vibrating.
+    gpio_put(PIN, 1);
+
+    // Vibration pulse duration.
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    // Stops vibrating.
+    gpio_put(PIN, 0);
+}
+
+
+// Retrieves or creates a new calibration config for flash_storage.
+static void check_calibration() {
+    
+    // Extracts calibration config from flash memory.
+    calibration_config = read_calibration_from_flash();
+
+    // Checks so that the calibration magic is valid.
+    if (calibration_config.magic != CALIBRATION_MAGIC) {
+        
+        // Calibrates the MPU_6050 sensors.
+        calibrate_mpu(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, &calibration_config.sensor_1);
+        calibrate_mpu(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, &calibration_config.sensor_2);
+        
+        // Sets magic to ensure data validity. 
+        calibration_config.magic = CALIBRATION_MAGIC;
+        
+        // Saves calibration config to flash memory.
+        save_calibration_to_flash(&calibration_config);
+    }
+}
+
+
+// Computes upper pitch angle in deg from accelerometer readings.
+float comp_pitch_upper(float ax, float ay, float az) {
+    float angle = atan2f(ay, az) * (180.0f / M_PI);
+    return angle + 90.0f;       // Offset upright position to 0°.
+}
+
+
+// Computes lower pitch angle in deg from accelerometer readings.
+float comp_pitch_lower(float ax, float ay, float az) {
+    float angle = atan2f(-ay, az) * (180.0f / M_PI);
+    return - (angle - 90.0f);      // Inverts angle & offsets upright position to 0°.
+}
+
+
+// Converts int-16t raw accelerometer data into g-forces (9.82ms^2).
+float comp_g_force(int16_t val) {
+    return (float)val / 16384.0f;
+}
+
+
 // Calibrates personalized baseline pitch angles for posture detection logic.
 static void calibrate_baseline(i2c_inst_t *bus1 ,uint8_t addr1, i2c_inst_t *bus2 ,uint8_t addr2) {
     
@@ -300,71 +365,6 @@ static void calibrate_baseline(i2c_inst_t *bus1 ,uint8_t addr1, i2c_inst_t *bus2
     // Stores the calibrated baseline pitch values.
     baseline_pitch_1 = pitch_upper / samples;
     baseline_pitch_2 = pitch_lower / samples;
-}
-
-
-// Initiates GPIO pin for vibration motor.
-static void init_motor(uint8_t PIN) {
-
-    // Initates pin and sets direction to output.
-    gpio_init(PIN);
-    gpio_set_dir(PIN, GPIO_OUT);
-}
-
-
-// Enables vibration motor for haptic feedback.
-static void vibrate_motor(uint8_t PIN) {
-    
-    // Starts vibrating.
-    gpio_put(PIN, 1);
-
-    // Vibration pulse duration.
-    vTaskDelay(pdMS_TO_TICKS(1000));
-
-    // Stops vibrating.
-    gpio_put(PIN, 0);
-}
-
-
-// Retrieves or creates a new calibration config for flash_storage.
-static void check_calibration() {
-    
-    // Extracts calibration config from flash memory.
-    calibration_config = read_calibration_from_flash();
-
-    // Checks so that the calibration magic is valid.
-    if (calibration_config.magic != CALIBRATION_MAGIC) {
-        
-        // Calibrates the MPU_6050 sensors.
-        calibrate_mpu(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, &calibration_config.sensor_1);
-        calibrate_mpu(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, &calibration_config.sensor_2);
-        
-        // Sets magic to ensure data validity. 
-        calibration_config.magic = CALIBRATION_MAGIC;
-        
-        // Saves calibration config to flash memory.
-        save_calibration_to_flash(&calibration_config);
-    }
-}
-
-
-// Computes upper pitch angle in deg from accelerometer readings.
-float comp_pitch_upper(float ax, float ay, float az) {
-    float angle = atan2f(ay, az) * (180.0f / M_PI);
-    return angle + 90.0f;       // Offset upright position to 0°.
-}
-
-
-// Computes lower pitch angle in deg from accelerometer readings.
-float comp_pitch_lower(float ax, float ay, float az) {
-    float angle = atan2f(-ay, az) * (180.0f / M_PI);
-    return - (angle - 90.0f);      // Inverts angle & offsets upright position to 0°.
-}
-
-
-// Converts int-16t raw accelerometer data into g-forces (9.82ms^2).
-float comp_g_force(int16_t val) {
-    return (float)val / 16384.0f;
 }
 
 

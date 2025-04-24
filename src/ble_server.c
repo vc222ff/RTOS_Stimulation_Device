@@ -15,6 +15,9 @@
 // Declares preprocessor macros.
 #define APP_AD_FLAGS 0x06
 
+// Declares handle definition for incoming communication.
+# define ATT_HANDLE_CUSTOM_RX_VALUE 0x0025
+
 // Global variables.
 int le_notification_enabled;                                           // BLE client notification flag.
 hci_con_handle_t con_handle;                                           // The HCI/BL connection handle.
@@ -89,14 +92,22 @@ uint16_t att_read_callback(hci_con_handle_t connection_handle, uint16_t att_hand
 int att_write_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t transaction_mode, uint16_t offset, uint8_t *buffer, uint16_t buffer_size) {
     UNUSED(transaction_mode);
     UNUSED(offset);
-    UNUSED(buffer_size);
     
-    if (att_handle != ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_CLIENT_CONFIGURATION_HANDLE) return 0;
-    le_notification_enabled = little_endian_read_16(buffer, 0) == GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION;
-    con_handle = connection_handle;
+    if (att_handle == ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_CLIENT_CONFIGURATION_HANDLE) {
+        le_notification_enabled = little_endian_read_16(buffer, 0) == GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION;
+        con_handle = connection_handle;
+        if (le_notification_enabled) {
+            att_server_request_can_send_now_event(con_handle);
+        }
+        return 0;
+    }
 
-    if (le_notification_enabled) {
-        att_server_request_can_send_now_event(con_handle);
+    // Handler for BLE RX Write operations.
+    if (att_handle == ATT_CHARACTERISTIC_b17a58e4_3f6d_4ae0_a70a_1656a3e59be1_01_VALUE_HANDLE) {
+        if (strncmp((const char*)buffer, "vibrate", buffer_size) == 0) {
+            // Vibrate motor;
+        }
+        return 0;
     }
     return 0;
 }
