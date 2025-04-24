@@ -54,58 +54,12 @@ static const int ble_notify_delay = 2000;                                       
 static CalibrationData calibration_config;                                      // Structure for calibration configuration from flash memory. 
 
 
-// Handles timed updating of BLE payload and advertisement.
-static void ble_handler(struct btstack_timer_source *ts) {
-   
-    // Updates content of BLE data payload string.
-    snprintf(data_payload, PAYLOAD_LENGTH, 
-        "X1: %.2f | Y1: %.2f | Z1: %.2f\nGX1: %d | GY1: %d | GZ1: %d\nT1: %.2f | Pitch1: %.2f°\n\n"
-        "X2: %.2f | Y2: %.2f | Z2: %.2f\nGX2: %d | GY2: %d | GZ2: %d\nT2: %.2f | Pitch2: %.2f°",
-        g_forces_1[0], g_forces_1[1], g_forces_1[2],
-        gyroscope_1[0], gyroscope_1[1], gyroscope_1[2], 
-        (temperature_1/340.0) + 36.53, comp_pitch_1,
-        g_forces_2[0], g_forces_2[1], g_forces_2[2], 
-        gyroscope_2[0], gyroscope_2[1], gyroscope_2[2], 
-        (temperature_2/340.0) + 36.53, comp_pitch_2
-    );
-
-    // Checks if client has enabled BLE notifications.
-    if (le_notification_enabled) {
-        att_server_request_can_send_now_event(con_handle);
-    }
-
-    // Restarts BTstack timer for callback to the BLE handler.
-    btstack_run_loop_set_timer(ts, ble_notify_delay);
-    btstack_run_loop_add_timer(ts);
-}
+// External reference to BLE server response function.
+extern void send_ble_response(const char *res);
 
 
-// Initializes Bluetooth Low Energy BLE with its related components & protocols.
-static void init_ble() {
-    
-    // Initializes CYW43 WiFi/BL chip, L2cap protocol and BL Security Manager.
-    cyw43_arch_init();
-    l2cap_init();
-    sm_init();
-
-    // Initializes BLE Attribute Protocol ATT server with callbacks.
-    att_server_init(profile_data, att_read_callback, att_write_callback);
-
-    // Sets callback and handler for HCI events.
-    hci_event_callback_registration.callback = &packet_handler;
-    hci_add_event_handler(&hci_event_callback_registration);
-
-    // Sets callback and handler for ATT packets.
-    att_server_register_packet_handler(packet_handler);
-
-    // Sets up periodic timer for BLE callback.
-    ble_notify_timer.process = &ble_handler;
-    btstack_run_loop_set_timer(&ble_notify_timer, ble_notify_delay);
-    btstack_run_loop_add_timer(&ble_notify_timer);
-
-    // Powers on the bluetooth stack.
-    hci_power_control(HCI_POWER_ON);
-}
+// Forward declaration of BLE-request handler.
+void ble_request_handler(const char *req, uint16_t len);
 
 
 // Initiates pins, I2C communication and power for MPU_6050 sensor.
@@ -365,6 +319,81 @@ static void calibrate_baseline(i2c_inst_t *bus1 ,uint8_t addr1, i2c_inst_t *bus2
     // Stores the calibrated baseline pitch values.
     baseline_pitch_1 = pitch_upper / samples;
     baseline_pitch_2 = pitch_lower / samples;
+}
+
+
+// Handles incoming requests to BLE server.
+void ble_request_handler(const char *req, uint16_t len) {
+    
+    // Handles "calibrate" cases.
+    if (strncmp(req, "calibrate", len) == 0) {
+        calibrate_baseline(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS);
+        send_ble_response("calibration:ok");
+    } 
+    // Handles "vibrate" cases.
+    else if (strncmp(req, "vibrate", len) == 0) {
+        vibrate_motor(VIBRATION_MOTOR_VCC);
+        send_ble_response("vibrate:ok");
+    }
+    // Handles unknown/malformed cases.
+    else {
+        printf("Server received unknown BLE request: %.*s\n", len, req);
+        send_ble_response("error:unknown");
+    }
+}
+
+
+// Handles timed broadcasting of BLE payload and advertisement.
+static void ble_broadcast_handler(struct btstack_timer_source *ts) {
+   
+    // Updates content of BLE data payload string.
+    snprintf(data_payload, PAYLOAD_LENGTH, 
+        "X1: %.2f | Y1: %.2f | Z1: %.2f\nGX1: %d | GY1: %d | GZ1: %d\nT1: %.2f | Pitch1: %.2f°\n\n"
+        "X2: %.2f | Y2: %.2f | Z2: %.2f\nGX2: %d | GY2: %d | GZ2: %d\nT2: %.2f | Pitch2: %.2f°",
+        g_forces_1[0], g_forces_1[1], g_forces_1[2],
+        gyroscope_1[0], gyroscope_1[1], gyroscope_1[2], 
+        (temperature_1/340.0) + 36.53, comp_pitch_1,
+        g_forces_2[0], g_forces_2[1], g_forces_2[2], 
+        gyroscope_2[0], gyroscope_2[1], gyroscope_2[2], 
+        (temperature_2/340.0) + 36.53, comp_pitch_2
+    );
+
+    // Checks if client has enabled BLE notifications.
+    if (le_notification_enabled) {
+        att_server_request_can_send_now_event(con_handle);
+    }
+
+    // Restarts BTstack timer for callback to the BLE handler.
+    btstack_run_loop_set_timer(ts, ble_notify_delay);
+    btstack_run_loop_add_timer(ts);
+}
+
+
+// Initializes Bluetooth Low Energy BLE with its related components & protocols.
+static void init_ble() {
+    
+    // Initializes CYW43 WiFi/BL chip, L2cap protocol and BL Security Manager.
+    cyw43_arch_init();
+    l2cap_init();
+    sm_init();
+
+    // Initializes BLE Attribute Protocol ATT server with callbacks.
+    att_server_init(profile_data, att_read_callback, att_write_callback);
+
+    // Sets callback and handler for HCI events.
+    hci_event_callback_registration.callback = &packet_handler;
+    hci_add_event_handler(&hci_event_callback_registration);
+
+    // Sets callback and handler for ATT packets.
+    att_server_register_packet_handler(packet_handler);
+
+    // Sets up periodic timer for BLE callback.
+    ble_notify_timer.process = &ble_broadcast_handler;
+    btstack_run_loop_set_timer(&ble_notify_timer, ble_notify_delay);
+    btstack_run_loop_add_timer(&ble_notify_timer);
+
+    // Powers on the bluetooth stack.
+    hci_power_control(HCI_POWER_ON);
 }
 
 

@@ -23,6 +23,8 @@ int le_notification_enabled;                                           // BLE cl
 hci_con_handle_t con_handle;                                           // The HCI/BL connection handle.
 
 char data_payload[PAYLOAD_LENGTH];                                     // Outgoing string array with data payload.
+char response_payload[PAYLOAD_LENGTH];                                 // Outgoing string array with response to request.
+static bool send_response_next = false;                                // Boolean for marking outgoing packet as a response. 
 
 static uint8_t adv_data[] = {                                          // BLE advertisement payload:
     0x02, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS,                                      // Flags: General Discoverable.
@@ -35,11 +37,16 @@ static uint8_t adv_data[] = {                                          // BLE ad
 static const uint8_t adv_data_len = sizeof(adv_data);                  // Advertisement data length.
 
 
+// External reference to main.c BLE request handler function.
+extern void ble_request_handler(const char *req, uint16_t len);
+
+
 // Packet handler function.
 void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
     UNUSED(size);
     UNUSED(channel);
     bd_addr_t local_addr;
+
 
     if (packet_type != HCI_EVENT_PACKET) return;
 
@@ -66,11 +73,15 @@ void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint
         case HCI_EVENT_DISCONNECTION_COMPLETE:
             le_notification_enabled = 0;
             break;
-
+        
         case ATT_EVENT_CAN_SEND_NOW:
-            att_server_notify(con_handle, ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE, (uint8_t*)data_payload, sizeof(data_payload));
+            if (send_response_next) {
+                att_server_notify(con_handle, ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE, (uint8_t*)response_payload, strlen(response_payload));
+                send_response_next = false;
+            } else {
+                att_server_notify(con_handle, ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE, (uint8_t*)data_payload, strlen(data_payload));
+            }
             break;
-
         default:
             break;
     }
@@ -104,10 +115,21 @@ int att_write_callback(hci_con_handle_t connection_handle, uint16_t att_handle, 
 
     // Handler for BLE RX Write operations.
     if (att_handle == ATT_CHARACTERISTIC_b17a58e4_3f6d_4ae0_a70a_1656a3e59be1_01_VALUE_HANDLE) {
-        if (strncmp((const char*)buffer, "vibrate", buffer_size) == 0) {
-            // Vibrate motor;
-        }
+
+        // Calls BLE request handler in main.c file.
+        ble_request_handler((const char*)buffer, buffer_size);
         return 0;
     }
+
     return 0;
+}
+
+
+// BLE write callback function. 
+void send_ble_response(const char *res) {
+    if (!le_notification_enabled) return;
+
+    snprintf(response_payload, PAYLOAD_LENGTH, "%s", res);
+    send_response_next = true;
+    att_server_request_can_send_now_event(con_handle);
 }
