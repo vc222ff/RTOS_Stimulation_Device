@@ -19,7 +19,7 @@ export default function DeviceScreen() {
   const [isScanning, setIsScanning] = useState(false);
 
 
-  // Start scanning for devices
+  // Starts scanning for devices
   const startScan = () => {
     setFoundDevices([]);
     setIsScanning(true);
@@ -33,24 +33,55 @@ export default function DeviceScreen() {
     }, { serviceUUID });
   };
 
-
-  // Stop scan on unmount or after connect
+  // Stops scan on unmount or after connect
   useEffect(() => {
     return () => BLEService.stopScan();
   }, []);
 
+
+  // Connects to a BLE-device.
   const connectToDevice = (selected: Device) => {
     BLEService.stopScan();
     setDevice(selected);
     setIsScanning(false);
   };
+  
 
+  // Sends baseline calibration BLE-request to BLE-device. 
+  const sendCalibrationRequest = async () => {
+    if (!device) {
+      console.warn('No device is connected.');
+      return;
+    }
+    try {
+      // Discovers all UUID services and characteristics on BLE-device.
+      await device.discoverAllServicesAndCharacteristics();
+      
+      // Destination service and characterstic UUIDs.
+      const serviceUUID = 'b17a58e4-3f6d-4ae0-a70a-1656a3e59be1';         // PRIMARY_SERVICE, b17a58e4-3f6d-4ae0-a70a-1656a3e59be1 # RX Handle "0x000d".
+      const characteristicUUID = 'b17a58e4-3f6d-4ae0-a70a-1656a3e59be1';  // CHARACTERISTIC, b17a58e4-3f6d-4ae0-a70a-1656a3e59be1, WRITE | DYNAMIC, # Defines 128b UUID reference.
+
+      // Formats request string into base64 format.
+      const request = 'calibrate';
+      const base64String = Buffer.from(request).toString('base64');
+      
+      // Sends calibration command to BLE-device.
+      await device.writeCharacteristicWithResponseForService(serviceUUID, characteristicUUID, base64String);
+      console.log('Calibration request string successfully sent to embedded device.');
+    } 
+    catch (error) {
+      console.error('Calibration request failed:', error);
+    }
+  }
+
+
+  // Disconnects from BLE-device.
   const disconnect = () => {
     device?.cancelConnection();
     setDevice(null);
   };
   
-  
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Your Device</Text>
@@ -63,6 +94,7 @@ export default function DeviceScreen() {
         <View>
           <Text>Name: {device.name}</Text>
           <Text>ID: {device.id}</Text>
+          <Button title="Calibrate Personal Baseline" onPress={sendCalibrationRequest} />
           <Button title="Disconnect" onPress={disconnect} />
         </View>
       ) : (
