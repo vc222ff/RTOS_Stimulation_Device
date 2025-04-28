@@ -1,6 +1,7 @@
 // Imports dependencies.
 import { FlatList, TouchableOpacity, Button, StyleSheet } from 'react-native';
 import React, { useContext, useEffect, useState } from 'react';
+import Toast from 'react-native-root-toast';
 import { Device } from 'react-native-ble-plx';
 import { Text, View } from '@/components/Themed';
 
@@ -68,11 +69,23 @@ export default function DeviceScreen() {
       // Sends calibration command to BLE-device.
       await device.writeCharacteristicWithResponseForService(serviceUUID, characteristicUUID, base64String);
       console.log('Calibration request string successfully sent to embedded device.');
-    } 
-    catch (error) {
+
+      // Shows a toast animation for successful request.
+      Toast.show('Calibration request successfully sent to BLE-device!', {
+        duration: Toast.durations.SHORT,
+        position: Toast.positions.BOTTOM,
+      });
+
+    } catch (error) {
       console.error('Calibration request failed:', error);
+
+      // Shows a toast animation for failed request.
+      Toast.show('Calibration request failure.', {
+        duration: Toast.durations.LONG,
+        position: Toast.positions.BOTTOM,
+      });
     }
-  }
+  };
 
 
   // Disconnects from BLE-device.
