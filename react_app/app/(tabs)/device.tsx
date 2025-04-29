@@ -5,10 +5,11 @@ import Toast from 'react-native-root-toast';
 import { Device } from 'react-native-ble-plx';
 import { Text, View } from '@/components/Themed';
 
-// Imports app services and hooks.
+// Imports app services, hooks and constants.
 import BLEService from '@/services/BLEService';
 import { BLEContext } from '@/services/BLEContext';
 import { usePostureData } from '@/hooks/usePostureData';
+import { COMMANDS } from '@/constants/BLEConstants';
 
 
 // Expo tab three function.
@@ -52,30 +53,19 @@ export default function DeviceScreen() {
   };
   
 
-  // Sends baseline calibration BLE-request to BLE-device. 
+  // Sends personal baseline calibration BLE-request to device. 
   const sendCalibrationRequest = async () => {
     if (!device) {
       console.warn('No device is connected.');
       return;
     }
 
-    // Sets calibration request state to true to start loading animation.
+    // Sets request state to true to start loading animation.
     setIsSendingCalibration(true);
 
     try {
-      // Discovers all UUID services and characteristics on BLE-device.
-      await device.discoverAllServicesAndCharacteristics();
-      
-      // Destination service and characterstic UUIDs.
-      const serviceUUID = 'b17a58e4-3f6d-4ae0-a70a-1656a3e59be1';         // PRIMARY_SERVICE, b17a58e4-3f6d-4ae0-a70a-1656a3e59be1 # RX Handle "0x000d".
-      const characteristicUUID = 'b17a58e4-3f6d-4ae0-a70a-1656a3e59be1';  // CHARACTERISTIC, b17a58e4-3f6d-4ae0-a70a-1656a3e59be1, WRITE | DYNAMIC, # Defines 128b UUID reference.
-
-      // Formats request string into base64 format.
-      const request = 'calibrate';
-      const base64String = Buffer.from(request).toString('base64');
-      
-      // Sends calibration command to BLE-device.
-      await device.writeCharacteristicWithResponseForService(serviceUUID, characteristicUUID, base64String);
+      // Sends CALIBRATE request to connected BLE-device.
+      await BLEService.sendBLERequest(device, COMMANDS.CALIBRATE);
       console.log('Calibration request string successfully sent to embedded device.');
 
       // Shows a toast animation for successful request.
@@ -94,7 +84,7 @@ export default function DeviceScreen() {
       });
 
     } finally {
-      // Sets calibration request state to false to stop loading animation.
+      // Sets request state to false to stop loading animation.
       setIsSendingCalibration(false);
     }
   };
@@ -120,7 +110,7 @@ export default function DeviceScreen() {
           <Text>Name: {device.name}</Text>
           <Text>ID: {device.id}</Text>
           {isSendingCalibration ? (
-            <View style={styles.calibrateButtonLoading}>
+            <View style={styles.loadingButton}>
               <ActivityIndicator size='small' color='#000' />
               <Text style={styles.loadingText}>Sending...</Text>
             </View>
@@ -231,7 +221,7 @@ const styles = StyleSheet.create({
     color: 'green',
     fontWeight: 'bold',
   },
-  calibrateButtonLoading: {
+  loadingButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
