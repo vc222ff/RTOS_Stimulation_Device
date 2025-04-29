@@ -1,5 +1,5 @@
 // Imports dependencies.
-import { FlatList, TouchableOpacity, Button, StyleSheet } from 'react-native';
+import { FlatList, TouchableOpacity, Button, StyleSheet, ActivityIndicator } from 'react-native';
 import React, { useContext, useEffect, useState } from 'react';
 import Toast from 'react-native-root-toast';
 import { Device } from 'react-native-ble-plx';
@@ -18,12 +18,16 @@ export default function DeviceScreen() {
   
   const [foundDevices, setFoundDevices] = useState<Device[]>([]);
   const [isScanning, setIsScanning] = useState(false);
+  const [isSendingCalibration, setIsSendingCalibration] = useState(false);
 
 
   // Starts scanning for devices
   const startScan = () => {
     setFoundDevices([]);
+
+    // Sets scanning state to true.
     setIsScanning(true);
+
     const seen = new Set<string>();
     
     BLEService.startScan((found) => {
@@ -54,6 +58,10 @@ export default function DeviceScreen() {
       console.warn('No device is connected.');
       return;
     }
+
+    // Sets calibration request state to true to start loading animation.
+    setIsSendingCalibration(true);
+
     try {
       // Discovers all UUID services and characteristics on BLE-device.
       await device.discoverAllServicesAndCharacteristics();
@@ -84,6 +92,10 @@ export default function DeviceScreen() {
         duration: Toast.durations.LONG,
         position: Toast.positions.BOTTOM,
       });
+
+    } finally {
+      // Sets calibration request state to false to stop loading animation.
+      setIsSendingCalibration(false);
     }
   };
 
@@ -107,7 +119,14 @@ export default function DeviceScreen() {
         <View>
           <Text>Name: {device.name}</Text>
           <Text>ID: {device.id}</Text>
-          <Button title="Calibrate Personal Baseline" onPress={sendCalibrationRequest} />
+          {isSendingCalibration ? (
+            <View style={styles.calibrateButtonLoading}>
+              <ActivityIndicator size='small' color='#000' />
+              <Text style={styles.loadingText}>Sending...</Text>
+            </View>
+          ) : (
+            <Button title="Calibrate Personal Baseline" onPress={sendCalibrationRequest} />
+          )}
           <Button title="Disconnect" onPress={disconnect} />
         </View>
       ) : (
@@ -206,10 +225,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   highlightedDevice: {
-    backgroundColor: '#e0f7e9', // light green background
+    backgroundColor: '#e0f7e9', // Light green background.
   },
   highlightedText: {
     color: 'green',
+    fontWeight: 'bold',
+  },
+  calibrateButtonLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007bff', // Blue button color.
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginVertical: 10,
+    elevation: 3,               // Android shadow.
+    shadowColor: '#000',        // iOS shadow.
+    shadowOffset: { width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  loadingText: {
+    marginLeft: 10,
+    fontSize: 16,
+    color: '#fff',              // White text color.
     fontWeight: 'bold',
   },
 });
