@@ -41,6 +41,8 @@
 #define UPPER_ANGLE_THRESHOLD 15        // Upper pitch angle boundry threshold in degrees.
 #define LOWER_ANGLE_THRESHOLD 15        // Lower pitch angle boundry threshold in degrees.
 
+#define NUM_REFERENCE_SAMPLES 100       // Sample number used in error validation.
+
 // Global variables.
 static int16_t acceleration_1[3], acceleration_2[3];                            // 16-bit signed integer arrays for acceleration values.
 static int16_t gyroscope_1[3], gyroscope_2[3];                                  // 16-bit signed integer arrays for gyroscope values.
@@ -49,6 +51,10 @@ static float g_forces_1[3], g_forces_2[3];                                      
 static float baseline_pitch_1 = 0, baseline_pitch_2 = 0;                        // Floating point values for calibrated baseline pitch angles.
 static float comp_pitch_1 = 0, comp_pitch_2 = 0;                                // Floating point values for filtered sensor pitch angles.
 static float alpha = 0.95f;                                                     // Floating point value for alpha in complementary filter.
+
+static float gold_angles[Num_Samples];                                          // Floating point array for gold standard values.
+static float trunk_angles_sensors[Num_Samples];                                 // Floating point array for trunk angle values.
+static uint8_t sample_count = 0;                                                // 8-bit unsigned integer for iterating sample values.
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;  // Structure for handling HCI events.
 static btstack_timer_source_t ble_notify_timer;                                 // BTstack software timer for notifications.
@@ -286,8 +292,8 @@ static void calibrate_baseline(i2c_inst_t *bus1 ,uint8_t addr1, i2c_inst_t *bus2
         last_time = now;
 
         // Computes accelerometer pitch angle (deg) and gyro pitch rate (deg/s).
-        float pitch_angle1 = comp_pitch_upper(g_forces_1[0], g_forces_1[1], g_forces_1[2]);
-        float pitch_angle2 = comp_pitch_lower(g_forces_2[0], g_forces_2[1], g_forces_2[2]);
+        float pitch_angle1 = comp_pitch_angle(g_forces_1[0], g_forces_1[1], g_forces_1[2]);
+        float pitch_angle2 = comp_pitch_angle(g_forces_2[0], g_forces_2[1], g_forces_2[2]);
         float pitch_rate1 = gyroscope_1[1] / 131.0f;
         float pitch_rate2 = gyroscope_2[1] / 131.0f;
 
@@ -453,6 +459,12 @@ static void posture_monitor_task(void *pvParameters) {
         // Filters out sensor noise using Complementary filter.
         //comp_pitch_1 = alpha * (comp_pitch_1 + pitch_rate_1 * dt) + (1.0f - alpha) * pitch_angle_1;
         comp_pitch_2 = alpha * (comp_pitch_2 + pitch_rate_2 * dt) + (1.0f - alpha) * pitch_angle_2;
+
+        // Error validation computation.
+        float trunk_angle = comp_pitch_1 - comp_pitch_2;
+        if (sample_count < Num_Samples) {
+            trunk_angles_sensors[sample_count] = trunk_angle;
+            gold_angles[sample_count] = 0.0f;        }
 
         // Defines thresholds for bad upper and lower posture angles.
         bool bad_posture_threshold =
