@@ -554,6 +554,9 @@ int main() {
     // Performs the initial personalized calibration of sensors.
     // calibrate_baseline(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS);
 
+    // Evaluates sensor measurements against reference standard values.
+    //evaluate_trunk_angle_accuracy();
+
     // Creates a FreeRTOS task for posture monitoring. 
     xTaskCreate(posture_monitor_task, "PostureMonitor", 1024, NULL, 1, NULL);
 
