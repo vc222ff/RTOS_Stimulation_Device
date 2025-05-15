@@ -11,11 +11,11 @@
 #include <btstack.h>
 #include <math.h>
 
-// Imports BLE server header file.
-#include "ble_server.h"
+// Imports project header files.
+#include "ble_server.h"                 // Imports BLE server header file.
+#include "flash_storage.h"              // Imports flash storage header file.
+#include "evaluation.h"                 // Imports evaluation header file.
 
-// Imports flash storage header file.
-#include "flash_storage.h"
 
 // Declares preprocessor macros for settings. (Before compilation).
 #define VIBRATION_MOTOR_VCC 21          // Vibration motor GPIO pin.
@@ -61,6 +61,7 @@ static btstack_timer_source_t ble_notify_timer;                                 
 static const int ble_notify_delay = 2000;                                       // Delay between the notifications.
 
 static CalibrationData calibration_config;                                      // Structure for calibration configuration from flash memory. 
+static EvaluationResult evaluation_result;                                      // Structure for error validation evaluation results.
 
 
 // External reference to BLE server response function.
@@ -321,6 +322,27 @@ static void calibrate_baseline(i2c_inst_t *bus1 ,uint8_t addr1, i2c_inst_t *bus2
     // Stores the calibrated baseline pitch values.
     baseline_pitch_1 = pitch_upper / samples;
     baseline_pitch_2 = pitch_lower / samples;
+}
+
+
+// Evaluates trunk angle against the reference standard.
+EvaluationResult evaluate_trunk_angle_accuracy() {
+    
+    EvaluationResult result = {0};    
+    if (sample_count == 0) return result;    
+    float sum_squared_error = 0.0f;
+
+    for (int i = 0; i < sample_count; i++) {
+        float error = trunk_angles_sensors[i] - gold_angles[i];
+        sum_squared_error += error * error;
+    }
+    result.rmse = sqrtf(sum_squared_error / sample_count);    for (int i = 0; i < sample_count; i++) {
+        if (trunk_angles_sensors[i] >= -15.0f && trunk_angles_sensors[i] <= 15.0f) {
+            result.within_range++;
+        }
+    }
+    result.total = sample_count;
+    result.percent_within_range = (float)result.within_range / sample_count * 100.0f;    return result;
 }
 
 
