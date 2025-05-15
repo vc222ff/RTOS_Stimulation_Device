@@ -10,6 +10,7 @@
 #include "rijndael.h"
 #include "btstack_linked_list.h"
 #include "btstack_run_loop_embedded.h"
+#include "btstack_debug.h"
 
 static btstack_packet_handler_t le_data_handler;
 
@@ -113,9 +114,36 @@ void mock_simulate_hci_state_working(void){
 	mock_simulate_hci_event((uint8_t *)&packet, sizeof(packet));
 }
 
+
+static void hci_create_gap_connection_complete_event(const uint8_t * hci_event, uint8_t * gap_event) {
+	gap_event[0] = HCI_EVENT_META_GAP;
+	gap_event[1] = 36 - 2;
+	gap_event[2] = GAP_SUBEVENT_LE_CONNECTION_COMPLETE;
+	switch (hci_event[2]){
+		case HCI_SUBEVENT_LE_CONNECTION_COMPLETE:
+			memcpy(&gap_event[3], &hci_event[3], 11);
+			memset(&gap_event[14], 0, 12);
+			memcpy(&gap_event[26], &hci_event[14], 7);
+			memset(&gap_event[33], 0xff, 3);
+			break;
+		case HCI_SUBEVENT_LE_ENHANCED_CONNECTION_COMPLETE_V1:
+			memcpy(&gap_event[3], &hci_event[3], 30);
+			memset(&gap_event[33], 0xff, 3);
+			break;
+		case HCI_SUBEVENT_LE_ENHANCED_CONNECTION_COMPLETE_V2:
+			memcpy(&gap_event[3], &hci_event[3], 33);
+			break;
+		default:
+			btstack_unreachable();
+			break;
+	}
+}
+
 void mock_simulate_connected(void){
     uint8_t packet[] = { 0x3e, 0x13, 0x01, 0x00, 0x40, 0x00, 0x01, 0x01, 0x18, 0x12, 0x5e, 0x68, 0xc9, 0x73, 0x18, 0x00, 0x00, 0x00, 0x48, 0x00, 0x05};
-	mock_simulate_hci_event((uint8_t *)&packet, sizeof(packet));
+	uint8_t gap_event[36];
+	hci_create_gap_connection_complete_event(packet, gap_event);
+	mock_simulate_hci_event(gap_event, sizeof(gap_event));
 }
 
 void att_init_connection(att_connection_t * att_connection){
@@ -179,6 +207,16 @@ void hci_le_set_own_address_type(uint8_t own_address){
 void hci_le_random_address_set(const bd_addr_t addr){
 }
 
+bool hci_is_le_identity_address_type(bd_addr_type_t address_type) {
+    switch (address_type) {
+        case BD_ADDR_TYPE_LE_PUBLIC_IDENTITY:
+        case BD_ADDR_TYPE_LE_RANDOM_IDENTITY:
+            return true;
+        default:
+            return false;
+    }
+}
+
 void l2cap_request_can_send_fix_channel_now_event(hci_con_handle_t con_handle, uint16_t cid){
 	if (packet_buffer_len) return;
     uint8_t event[] = { L2CAP_EVENT_CAN_SEND_NOW, 2, 0, 0};
@@ -230,9 +268,8 @@ void hci_add_event_handler(btstack_packet_callback_registration_t * callback_han
 	btstack_linked_list_add(&event_packet_handlers, (btstack_linked_item_t *) callback_handler);
 }
 
-bool l2cap_reserve_packet_buffer(void){
+void l2cap_reserve_packet_buffer(void){
 	printf("l2cap_reserve_packet_buffer\n");
-	return true;
 }
 
 uint8_t l2cap_send_prepared_connectionless(uint16_t handle, uint16_t cid, uint16_t len){

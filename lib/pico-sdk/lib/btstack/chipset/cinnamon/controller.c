@@ -80,15 +80,15 @@ static void (*hci_packet_handler)(uint8_t packet_type, uint8_t *packet, uint16_t
 static bool controller_ll_acl_reserved;
 
 static void send_command_complete(uint16_t opcode, uint8_t status, const uint8_t * result, uint16_t len){
-    hci_event_create_from_template_and_arguments(hci_outgoing_event, &hci_event_command_complete,
-            /* num commands */ 1, opcode, status, len, result);
+    hci_event_create_from_template_and_arguments(hci_outgoing_event, sizeof(hci_outgoing_event),
+         &hci_event_command_complete, /* num commands */ 1, opcode, status, len, result);
     hci_outgoing_event_ready = true;
     btstack_run_loop_poll_data_sources_from_irq();
 }
 
 static void fake_command_complete(uint16_t opcode){
-    hci_event_create_from_template_and_arguments(hci_outgoing_event, &hci_event_command_complete,
-            /* num commands */ 1, opcode, ERROR_CODE_SUCCESS, 0, NULL);
+    hci_event_create_from_template_and_arguments(hci_outgoing_event, sizeof(hci_outgoing_event),
+         &hci_event_command_complete, /* num commands */ 1, opcode, ERROR_CODE_SUCCESS, 0, NULL);
     hci_outgoing_event_ready = true;
     btstack_run_loop_poll_data_sources_from_irq();
 }
@@ -165,7 +165,7 @@ static void controller_handle_acl_data(uint8_t * packet, uint16_t size){
 static void transport_emit_hci_event(const hci_event_t * event, ...){
     va_list argptr;
     va_start(argptr, event);
-    uint16_t length = hci_event_create_from_template_and_arglist(hci_outgoing_event, event, argptr);
+    uint16_t length = hci_event_create_from_template_and_arglist(hci_outgoing_event, sizeof(hci_outgoing_event), event, argptr);
     va_end(argptr);
     hci_packet_handler(HCI_EVENT_PACKET, hci_outgoing_event, length);
 }

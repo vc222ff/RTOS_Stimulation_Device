@@ -68,10 +68,6 @@ void mock_btstack_run_loop_trigger_timer(void){
     (*btstack_timer->process)(btstack_timer);
 }
 
-void hci_add_event_handler(btstack_packet_callback_registration_t * callback_handler){
-    (void)callback_handler;
-}
-
 // simulate  btstack_memory_battery_service_client_get
 
 static bool mock_btstack_memory_battery_service_client_no_memory;
@@ -135,11 +131,10 @@ static void gatt_client_event_handler(uint8_t packet_type, uint16_t channel, uin
             if (att_status != ATT_ERROR_SUCCESS){
                 // printf("Battery level read failed, ATT Error 0x%02x\n", att_status);
                 break;
-            } 
-            
+            }
             // printf("Battery level 0x%02x\n", gattservice_subevent_battery_service_level_get_level(packet));
             CHECK_EQUAL(battery_level[0], gattservice_subevent_battery_service_level_get_level(packet));
-            CHECK_EQUAL(0, gattservice_subevent_battery_service_level_get_sevice_index(packet));
+            CHECK_EQUAL(0, gattservice_subevent_battery_service_level_get_service_index(packet));
             break;
 
         default:
@@ -526,6 +521,29 @@ TEST(BATTERY_SERVICE_CLIENT, mixed_poll_and_notify_battery_value){
     
     connect();
     CHECK_EQUAL(true, connected);
+}
+
+TEST(BATTERY_SERVICE_CLIENT, hci_disconnect_event){
+    setup_service(true, true);
+    connect();
+    CHECK_EQUAL(true, connected);
+    
+    mock_hci_emit_disconnection_complete(con_handle, 0);
+    uint8_t status = battery_service_client_disconnect(battery_service_cid);
+    CHECK_EQUAL(ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER, status);
+
+    mock_hci_emit_disconnection_complete(HCI_CON_HANDLE_INVALID, 0);
+}
+
+TEST(BATTERY_SERVICE_CLIENT, ignored_events){
+    setup_service(true, true);
+    connect();
+    CHECK_EQUAL(true, connected);
+    
+    // unexpected event
+    mock_hci_emit_connection_encrypted(con_handle, 0);
+    // event with wrong con handle
+    mock_hci_emit_disconnection_complete(HCI_CON_HANDLE_INVALID, 0);
 }
 
 int main (int argc, const char * argv[]){

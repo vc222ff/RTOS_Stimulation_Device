@@ -77,14 +77,6 @@ static void cyw43_poll_func(void);
 static void cyw43_wifi_ap_init(cyw43_t *self);
 static void cyw43_wifi_ap_set_up(cyw43_t *self, bool up);
 
-static inline uint32_t cyw43_get_be16(const uint8_t *buf) {
-    return buf[0] << 8 | buf[1];
-}
-
-static inline uint32_t cyw43_get_be32(const uint8_t *buf) {
-    return buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
-}
-
 /*******************************************************************************/
 // Initialisation and polling
 
@@ -421,6 +413,10 @@ void cyw43_cb_process_async_event(void *cb_data, const cyw43_async_event_t *ev) 
             // PSK_SUP failure
             self->wifi_join_state = WIFI_JOIN_STATE_BADAUTH;
         }
+    } else if (ev->event_type == CYW43_EV_ICV_ERROR) {
+        self->pend_rejoin = true;
+        self->pend_rejoin_wpa = false;
+        cyw43_schedule_internal_poll_dispatch(cyw43_poll_func);
     }
 
     if (self->wifi_join_state == WIFI_JOIN_STATE_ALL) {
@@ -554,16 +550,20 @@ void cyw43_wifi_set_up(cyw43_t *self, int itf, bool up, uint32_t country) {
         }
         if (itf == CYW43_ITF_AP) {
             cyw43_wifi_ap_init(self);
-            cyw43_wifi_ap_set_up(self, true);
         }
         if ((self->itf_state & (1 << itf)) == 0) {
             cyw43_cb_tcpip_deinit(self, itf);
             cyw43_cb_tcpip_init(self, itf);
             self->itf_state |= 1 << itf;
         }
+        if (itf == CYW43_ITF_AP) {
+            // Avoid a race by bringing the AP link up after the interface
+            cyw43_wifi_ap_set_up(self, true);
+        }
     } else {
         if (itf == CYW43_ITF_AP) {
             cyw43_wifi_ap_set_up(self, false);
+            self->itf_state &= ~(1 << CYW43_ITF_AP);
         }
     }
     CYW43_THREAD_EXIT;
@@ -707,7 +707,10 @@ void cyw43_wifi_ap_get_stas(cyw43_t *self, int *num_stas, uint8_t *macs) {
         return;
     }
 
-    cyw43_ll_wifi_ap_get_stas(&self->cyw43_ll, num_stas, macs);
+    ret = cyw43_ll_wifi_ap_get_stas(&self->cyw43_ll, num_stas, macs);
+    if (ret != 0) {
+        *num_stas = 0;
+    }
     CYW43_THREAD_EXIT;
 }
 

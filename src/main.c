@@ -19,16 +19,17 @@
 
 // Declares preprocessor macros for settings. (Before compilation).
 #define VIBRATION_MOTOR_VCC 21          // Vibration motor GPIO pin.
-#define IMU_UPPER_VCC 14                // Power (VCC) pin for upper sensor.
-#define IMU_LOWER_VCC 1                 // Power pin for lower sensor.
+#define INTERNAL_LED 11                 // Internal LED GPIO pin.           (PICO_DEFAULT_LED_PIN ?)
+#define IMU_UPPER_VCC 17                // Power (VCC) pin for upper sensor.
+#define IMU_LOWER_VCC 14                // Power pin for lower sensor.
 
-#define IMU_UPPER_SDA 12                // SDA GPIO connection for upper sensor. 
-#define IMU_UPPER_SCL 13                // SCL GPIO connection for upper sensor.
-#define IMU_LOWER_SDA 2                 // SDA GPIO connection for lower sensor.
-#define IMU_LOWER_SCL 3                 // SCL GPIO connection for lower sensor.
+#define IMU_UPPER_SCL 18                // SCL GPIO connection for upper sensor.
+#define IMU_UPPER_SDA 19                // SDA GPIO connection for upper sensor. 
+#define IMU_LOWER_SCL 13                // SCL GPIO connection for lower sensor.
+#define IMU_LOWER_SDA 12                // SDA GPIO connection for lower sensor.
 
-#define IMU_UPPER_I2C_BUS i2c0          // I2C communication bus for upper sensor.
-#define IMU_LOWER_I2C_BUS i2c1          // I2C comminication bus for lower sensor.
+#define IMU_UPPER_I2C_BUS i2c1          // I2C communication bus for upper sensor.
+#define IMU_LOWER_I2C_BUS i2c0          // I2C comminication bus for lower sensor.
 #define I2C_CLOCK_SPEED 400000          // I2C communication bus speed.
 
 #define MPU_6050_ADDRESS 0x68           // Standard memory adress for MPU_6050 sensors.
@@ -37,6 +38,8 @@
 #define TEMP_REG 0x41                   // Start register for MPU temperature data (2 bytes).
 #define PWR_MGMT_REG 0x6b               // MPU_6050 Power management register.
 
+#define UPPER_ANGLE_THRESHOLD 15        // Upper pitch angle boundry threshold in degrees.
+#define LOWER_ANGLE_THRESHOLD 15        // Lower pitch angle boundry threshold in degrees.
 
 // Global variables.
 static int16_t acceleration_1[3], acceleration_2[3];                            // 16-bit signed integer arrays for acceleration values.
@@ -188,8 +191,8 @@ static void calibrate_mpu(i2c_inst_t *bus ,uint8_t addr, SensorCalibration *sens
 }
 
 
-// Initiates GPIO pin for vibration motor.
-static void init_motor(uint8_t PIN) {
+// Initiates GPIO pin for output.
+static void init_output(uint8_t PIN) {
 
     // Initates pin and sets direction to output.
     gpio_init(PIN);
@@ -233,17 +236,10 @@ static void check_calibration() {
 }
 
 
-// Computes upper pitch angle in deg from accelerometer readings.
-float comp_pitch_upper(float ax, float ay, float az) {
+// Computes pitch angle in deg from accelerometer readings.
+float comp_pitch_angle(float ax, float ay, float az) {
     float angle = atan2f(ay, az) * (180.0f / M_PI);
     return angle + 90.0f;       // Offset upright position to 0°.
-}
-
-
-// Computes lower pitch angle in deg from accelerometer readings.
-float comp_pitch_lower(float ax, float ay, float az) {
-    float angle = atan2f(-ay, az) * (180.0f / M_PI);
-    return - (angle - 90.0f);      // Inverts angle & offsets upright position to 0°.
 }
 
 
@@ -407,9 +403,12 @@ static void posture_monitor_task(void *pvParameters) {
     // Boolean variable for toggling onboard LED.
     static int led_on = true;
     
+    // Initializes GPIO pin for internal LED.
+    //init_output(INTERNAL_LED);
+
     // Thresholds for upper and lower spine pitch angles in degrees.
-    const float angle_upper_threshold = 15.0f;
-    const float angle_lower_threshold = 15.0f;
+    const float angle_upper_threshold = UPPER_ANGLE_THRESHOLD;
+    const float angle_lower_threshold = LOWER_ANGLE_THRESHOLD;
    
     // Gets the current absolute time.
     absolute_time_t last_time;
@@ -419,21 +418,21 @@ static void posture_monitor_task(void *pvParameters) {
     while(1) {
         
         // Retrieves accelerometer readings from both sensors.
-        read_accelerometer(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, acceleration_1, calibration_config.sensor_1.accelerometer_bias);
+        //read_accelerometer(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, acceleration_1, calibration_config.sensor_1.accelerometer_bias);
         read_accelerometer(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, acceleration_2, calibration_config.sensor_2.accelerometer_bias);
 
         // Retrieves gyroscopic readings from both sensors.
-        read_gyroscope(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, gyroscope_1, calibration_config.sensor_1.gyroscope_bias);
+        //read_gyroscope(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, gyroscope_1, calibration_config.sensor_1.gyroscope_bias);
         read_gyroscope(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, gyroscope_2, calibration_config.sensor_2.gyroscope_bias);
 
         // Retrieves temperature readings from both sensors.
-        read_temperature(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, &temperature_1);
+        //read_temperature(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, &temperature_1);
         read_temperature(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, &temperature_2);
         
         // Converts and sorts raw accelerometer readings into g-forces.
-        g_forces_1[0] = comp_g_force(acceleration_1[1]);            // MPU-6050 sensor-axes. 2x (x,y,z).
-        g_forces_1[1] = comp_g_force(-acceleration_1[0]);           // Here it is important to account for sensor missalignment.
-        g_forces_1[2] = comp_g_force(acceleration_1[2]);            // (Important to remember to change w/ new design iteration!)
+        //g_forces_1[0] = comp_g_force(acceleration_1[1]);            // MPU-6050 sensor-axes. 2x (x,y,z).
+        //g_forces_1[1] = comp_g_force(-acceleration_1[0]);           // Here it is important to account for sensor missalignment.
+        //g_forces_1[2] = comp_g_force(acceleration_1[2]);            // (Important to remember to change w/ new design iteration!)
         g_forces_2[0] = comp_g_force(-acceleration_2[1]);
         g_forces_2[1] = comp_g_force(acceleration_2[0]);            // This function could be changed to use arrays... ?!
         g_forces_2[2] = comp_g_force(acceleration_2[2]);            // (To reduce code duplication...)
@@ -444,20 +443,20 @@ static void posture_monitor_task(void *pvParameters) {
         last_time = now;
         
         // Computes accelerometer pitch angles in deg for both sensors.
-        float pitch_angle_1 = comp_pitch_upper(g_forces_1[0], g_forces_1[1], g_forces_1[2]);
-        float pitch_angle_2 = comp_pitch_lower(g_forces_2[0], g_forces_2[1], g_forces_2[2]);
+        //float pitch_angle_1 = comp_pitch_angle(g_forces_1[0], g_forces_1[1], g_forces_1[2]);
+        float pitch_angle_2 = comp_pitch_angle(g_forces_2[0], g_forces_2[1], g_forces_2[2]);
 
         // Computes gyroscopic pitch rate in deg/s for both sensors.
-        float pitch_rate_1 = gyroscope_1[1] / 131.0f;
+        //float pitch_rate_1 = gyroscope_1[1] / 131.0f;
         float pitch_rate_2 = gyroscope_2[1] / 131.0f;
 
         // Filters out sensor noise using Complementary filter.
-        comp_pitch_1 = alpha * (comp_pitch_1 + pitch_rate_1 * dt) + (1.0f - alpha) * pitch_angle_1;
+        //comp_pitch_1 = alpha * (comp_pitch_1 + pitch_rate_1 * dt) + (1.0f - alpha) * pitch_angle_1;
         comp_pitch_2 = alpha * (comp_pitch_2 + pitch_rate_2 * dt) + (1.0f - alpha) * pitch_angle_2;
 
         // Defines thresholds for bad upper and lower posture angles.
         bool bad_posture_threshold =
-        fabsf(comp_pitch_1 - baseline_pitch_1) > angle_upper_threshold ||   // Uses absolute values (magnitude).
+        //fabsf(comp_pitch_1 - baseline_pitch_1) > angle_upper_threshold ||   // Uses absolute values (magnitude).
         fabsf(comp_pitch_2 - baseline_pitch_2) > angle_lower_threshold;
 
         // Checks if posture is outside of posture angle threshold or not.
@@ -474,7 +473,8 @@ static void posture_monitor_task(void *pvParameters) {
         // Inverts the onboard LED to display processing state.
         static int blink_counter = 0;
         if (++blink_counter >= 30) {
-            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
+            //gpio_put(INTERNAL_LED, led_on);
+            //cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);   // Pico 1 W
             led_on = !led_on;
             blink_counter = 0;
         }
@@ -491,25 +491,34 @@ int main() {
     // Initializes the standard C library.
     stdio_init_all();
     
+    // Blink test to check code compability.
+    init_output(CYW43_WL_GPIO_LED_PIN);
+    gpio_put(CYW43_WL_GPIO_LED_PIN, true);
+    sleep_ms(2000);
+    gpio_put(CYW43_WL_GPIO_LED_PIN, false);
+    sleep_ms(1000);
+    gpio_put(CYW43_WL_GPIO_LED_PIN, true);
+    sleep_ms(2000);
+
     // Initializes BLE advertisement and related wireless protocols.  
     init_ble();
 
     // Iniitalizes the I2C communication buses.
-    i2c_init(IMU_UPPER_I2C_BUS, I2C_CLOCK_SPEED);
+    //i2c_init(IMU_UPPER_I2C_BUS, I2C_CLOCK_SPEED);
     i2c_init(IMU_LOWER_I2C_BUS, I2C_CLOCK_SPEED);
     
     // Timer before Auxiliaries (IO) start.
     sleep_ms(3000);
     
     // Initalizes the MPU_6050 sensors. 
-    init_mpu(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, IMU_UPPER_SCL, IMU_UPPER_SDA, IMU_UPPER_VCC);
+    //init_mpu(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, IMU_UPPER_SCL, IMU_UPPER_SDA, IMU_UPPER_VCC);
     init_mpu(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, IMU_LOWER_SCL, IMU_LOWER_SDA, IMU_LOWER_VCC);
 
-    // Initalizes the vibration motor. 
-    init_motor(VIBRATION_MOTOR_VCC);
+    // Initalizes the vibration motor.
+    init_output(VIBRATION_MOTOR_VCC);
 
     // Performs the initial personalized calibration of sensors.
-    calibrate_baseline(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS);
+    // calibrate_baseline(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS);
 
     // Creates a FreeRTOS task for posture monitoring. 
     xTaskCreate(posture_monitor_task, "PostureMonitor", 1024, NULL, 1, NULL);

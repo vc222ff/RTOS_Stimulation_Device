@@ -2,7 +2,11 @@
 
 BTSTACK_ROOT =  ../..
 
-CFLAGS  = -DUNIT_TEST -g -Wall -Wnarrowing -Wconversion-null -I. -Ibuild-coverage -I${BTSTACK_ROOT}/src
+# CppuTest from pkg-config
+CFLAGS  += ${shell pkg-config --cflags CppuTest}
+LDFLAGS += ${shell pkg-config --libs   CppuTest}
+
+CFLAGS += -DUNIT_TEST -g -Wall -Wnarrowing -Wconversion-null -I. -Ibuild-coverage -I${BTSTACK_ROOT}/src
 
 VPATH += ${BTSTACK_ROOT}/src
 VPATH += ${BTSTACK_ROOT}/src/ble 
@@ -20,6 +24,7 @@ COMMON = \
 	btstack_util.c              \
 	gatt_client.c               \
 	hci_cmd.c                   \
+	hci_event_builder.c         \
 	hci_dump.c                  \
 	le_device_db_memory.c       \
 	mock.c                      \

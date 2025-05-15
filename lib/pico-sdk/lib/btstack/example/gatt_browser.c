@@ -200,11 +200,11 @@ static void handle_hci_event(uint8_t packet_type, uint16_t channel, uint8_t *pac
             gap_stop_scan();
             gap_connect(report.address,report.address_type);
             break;
-        case HCI_EVENT_LE_META:
+        case HCI_EVENT_META_GAP:
             // wait for connection complete
-            if (hci_event_le_meta_get_subevent_code(packet) !=  HCI_SUBEVENT_LE_CONNECTION_COMPLETE) break;
+            if (hci_event_gap_meta_get_subevent_code(packet) !=  GAP_SUBEVENT_LE_CONNECTION_COMPLETE) break;
             printf("\nGATT browser - CONNECTED\n");
-            connection_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
+            connection_handle = gap_subevent_le_connection_complete_get_connection_handle(packet);
             // query primary services
             gatt_client_discover_primary_services(handle_gatt_client_event, connection_handle);
             break;
@@ -269,20 +269,26 @@ int btstack_main(int argc, const char * argv[]){
 
 #ifdef HAVE_BTSTACK_STDIN
     // process command line arguments when running in a shell
-    int arg = 1;
+    int arg;
     cmdline_addr_found = 0;
     
-    while (arg < argc) {
-		if(!strcmp(argv[arg], "-a") || !strcmp(argv[arg], "--address")){
-			arg++;
-			cmdline_addr_found = sscanf_bd_addr(argv[arg], cmdline_addr);
-            arg++;
-            continue;
+    for (arg = 1; arg < argc; arg++) {
+        if(!strcmp(argv[arg], "-a") || !strcmp(argv[arg], "--address")){
+            if (arg + 1 < argc) {
+                arg++;
+                cmdline_addr_found = sscanf_bd_addr(argv[arg], cmdline_addr);
+            }
+            if (!cmdline_addr_found) {
+                fprintf(stderr, "\nUsage: %s [-a|--address aa:bb:cc:dd:ee:ff]\n", argv[0]);
+                fprintf(stderr, "If no argument is provided, %s will start scanning and connect to the first found device.\n"
+                                "To connect to a specific device use argument [-a].\n\n", argv[0]);
+                return 1;
+            }
         }
-        fprintf(stderr, "\nUsage: %s [-a|--address aa:bb:cc:dd:ee:ff]\n", argv[0]);
-        fprintf(stderr, "If no argument is provided, GATT browser will start scanning and connect to the first found device.\nTo connect to a specific device use argument [-a].\n\n");
-        return 0;
-	}
+    }
+    if (!cmdline_addr_found) {
+        fprintf(stderr, "No specific address specified or found; start scanning for any advertiser.\n");
+    }
 #else
     (void)argc;
     (void)argv;

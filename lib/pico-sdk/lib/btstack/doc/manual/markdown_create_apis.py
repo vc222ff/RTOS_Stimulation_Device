@@ -38,13 +38,29 @@ api_description = """
 code_ref = """GITHUB/FPATH#LLINENR"""
 
 def isEndOfComment(line):
-    return re.match('\s*\*/.*', line) 
+    parts = re.match(r'\s*\*\/.*', line)
+    if parts:
+        return True
+    return False
 
 def isStartOfComment(line):
-    return re.match('\s*\/\*/.*', line) 
+    parts = re.match(r'\s*\/\*\*.*', line)
+    if parts:
+        return True
+    return False
+
+def isComment(line): 
+    parts = re.match(r'\s*\/\/.*', line)
+    if parts:
+        return True
+    parts = re.match(r'\s*\*.*', line)
+    if parts:
+        return True
+
+    return isStartOfComment(line) or isEndOfComment(line)
 
 def isTypedefStart(line):
-    return re.match('.*typedef\s+struct.*', line)
+    return re.match(r'.*typedef\s+struct.*', line)
 
 def codeReference(fname, githuburl, filename_without_extension, filepath, linenr):
     global code_ref
@@ -54,11 +70,11 @@ def codeReference(fname, githuburl, filename_without_extension, filepath, linenr
     return ref
 
 def isTagAPI(line):
-    return re.match('(.*)(-\s*\')(APIs).*',line)
+    return re.match(r'(.*)(-\s*\')(APIs).*',line)
 
 def getSecondLevelIdentation(line):
     indentation = ""
-    parts = re.match('(.*)(-\s*\')(APIs).*',line)
+    parts = re.match(r'(.*)(-\s*\')(APIs).*',line)
     if parts:
         # return double identation for the submenu
         indentation = parts.group(1) + parts.group(1) + "- "
@@ -110,10 +126,7 @@ def createIndex(fin, filename, api_filepath, api_title, api_label, githuburl):
                 state = State.DoneAPI
                 continue
 
-        if multiline_function_def:
-            function_end = re.match('.*;\n', line)
-            if function_end:
-                multiline_function_def = 0
+        if isComment(line):
             continue
 
         param = re.match(".*@brief.*", line)
@@ -125,6 +138,15 @@ def createIndex(fin, filename, api_filepath, api_title, api_label, githuburl):
         param = re.match(".*@return.*", line)
         if param:
             continue
+        param = re.match(".*@result.*", line)
+        if param:
+            continue
+        param = re.match(".*@note.*", line)
+        if param:
+            continue
+        param = re.match(".*return.*", line)
+        if param:
+            continue
         
         # search typedef struct begin
         if isTypedefStart(line):
@@ -132,29 +154,36 @@ def createIndex(fin, filename, api_filepath, api_title, api_label, githuburl):
         
         # search typedef struct end
         if typedefFound:
-            typedef = re.match('}\s*(.*);\n', line)
+            typedef = re.match(r'}\s*(.*);\n', line)
             if typedef:
                 typedefFound = 0
                 typedefs[typedef.group(1)] = codeReference(typedef.group(1), githuburl, filename, api_filepath, linenr)
             continue
 
-        ref_function =  re.match('.*typedef\s+void\s+\(\s*\*\s*(.*?)\)\(.*', line)
+        ref_function =  re.match(r'.*typedef\s+void\s+\(\s*\*\s*(.*?)\)\(.*', line)
         if ref_function:
             functions[ref_function.group(1)] = codeReference(ref_function.group(1), githuburl, filename, api_filepath, linenr)
             continue
 
+        # filter callback 
+        callback_function_definition = re.match(r'(.*?)\s*\(\s*\*.*\(*.*;\n', line)
+        if callback_function_definition:
+            continue
 
-        one_line_function_definition = re.match('(.*?)\s*\(.*\(*.*;\n', line)
+        one_line_function_definition = re.match(r'(.*?)\s*\(.*\(*.*;\n', line)
         if one_line_function_definition:
             parts = one_line_function_definition.group(1).split(" ");
             name = parts[len(parts)-1]
             if len(name) == 0:
                 print(parts);
                 sys.exit(10)
+            # ignore typedef for callbacks
+            if parts[0] == 'typedef':
+                continue
             functions[name] = codeReference( name, githuburl, filename, api_filepath, linenr)
             continue
 
-        multi_line_function_definition = re.match('.(.*?)\s*\(.*\(*.*', line)
+        multi_line_function_definition = re.match(r'.(.*?)\s*\(.*\(*.*', line)
         if multi_line_function_definition:
             parts = multi_line_function_definition.group(1).split(" ");
 
@@ -176,7 +205,7 @@ def findTitle(fin):
             if isStartOfComment(line):
                 continue
 
-            parts = re.match('.*(@title)(.*)', line)
+            parts = re.match(r'.*(@title)(.*)', line)
             if parts:
                 title = parts.group(2).strip()
                 state = State.SearchEndTitle
@@ -187,7 +216,7 @@ def findTitle(fin):
                 state = State.DoneAPI
                 break
 
-            parts = re.match('(\s*\*\s*)(.*\n)',line)
+            parts = re.match(r'(\s*\*\s*)(.*\n)',line)
             if parts:
                 desc = desc + parts.group(2)
     return [title, desc]
@@ -340,6 +369,9 @@ def main(argv):
 
     references = functions.copy()
     references.update(typedefs)
+
+    for function_name, url in references.items():
+        print(function_name, url)
 
     # with open(indexfile, 'w') as fout:
     #     for function, reference in references.items():

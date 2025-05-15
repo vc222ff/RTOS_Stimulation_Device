@@ -9,6 +9,7 @@
 set(BLUEKITCHEN_URL https://bluekitchen-gmbh.com/files/ti/service-packs)
 set(CONVERSION_SCRIPT ${BTSTACK_ROOT}/chipset/cc256x/convert_bts_init_scripts.py)
 
+find_package (Python REQUIRED COMPONENTS Interpreter)
 #
 # Service Pack / Init Script / .bts Conversion function
 #
@@ -33,7 +34,7 @@ function(cc256x_init_script output_file archive main_script optional_script)
             add_custom_command(
                     OUTPUT ${output_file}
                     DEPENDS ${main_script} ${optional_script}
-                    COMMAND python
+                    COMMAND ${Python_EXECUTABLE}
                     ARGS ${CONVERSION_SCRIPT} ${main_script} ${optional_script} ${output_file}
             )
 
@@ -119,6 +120,7 @@ cc256x_init_script(bluetooth_init_cc2564C_1.5.c                  cc256xc_bt_sp_v
 cc256x_init_script(TIInit_11.8.32_4.2.c                          TIInit_11.8.32_4.2.bts          TIInit_11.8.32_4.2.bts                                       "")
 cc256x_init_script(TIInit_11.8.32_4.6.c                          TIInit_11.8.32_4.6.bts          TIInit_11.8.32_4.6.bts                                       "")
 cc256x_init_script(TIInit_11.8.32_4.7.c                          TIInit_11.8.32_4.7.bts          TIInit_11.8.32_4.7.bts                                       "")
+cc256x_init_script(TIInit_11.8.32_4.8.c                          TIInit_11.8.32_4.8.bts          TIInit_11.8.32_4.8.bts                                       "")
 cc256x_init_script(TIInit_12.10.28.c                             TIInit_12.10.28.bts             TIInit_12.10.28.bts                                          "")
 cc256x_init_script(TIInit_12.8.32.c                              TIInit_12.8.32.bts              TIInit_12.8.32.bts                                           "")
 

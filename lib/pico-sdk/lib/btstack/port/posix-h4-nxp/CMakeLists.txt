@@ -17,22 +17,6 @@ elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
 	# using Visual Studio C++
 endif()
 
-# pkgconfig
-find_package(PkgConfig QUIET)
-
-# portaudio
-if (PgConfig_FOUND)
-	pkg_check_modules(PORTAUDIO REQUIRED portaudio-2.0)
-	if(PORTAUDIO_FOUND)
-		message("HAVE_PORTAUDIO")
-		include_directories(${PORTAUDIO_INCLUDE_DIRS})
-		link_directories(${PORTAUDIO_LIBRARY_DIRS})
-		link_libraries(${PORTAUDIO_LIBRARIES})
-		# CMake 3.12 - add_compile_definitions(HAVE_PORTAUDIO)
-		SET(CMAKE_C_FLAGS  "-DHAVE_PORTAUDIO")
-	endif()
-endif()
-
 # to generate .h from .gatt files
 find_package (Python REQUIRED COMPONENTS Interpreter)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -59,7 +43,7 @@ include_directories(${BTSTACK_ROOT}/platform/lwip)
 include_directories(${BTSTACK_ROOT}/platform/lwip/port)
 include_directories(${BTSTACK_ROOT}/platform/posix)
 
-file(GLOB SOURCES_SRC       "${BTSTACK_ROOT}/src/*.c" "${BTSTACK_ROOT}/example/sco_demo_util.c")
+file(GLOB SOURCES_SRC       "${BTSTACK_ROOT}/src/*.c" "${BTSTACK_ROOT}/example/*demo_util*.c")
 file(GLOB SOURCES_BLE       "${BTSTACK_ROOT}/src/ble/*.c")
 file(GLOB SOURCES_BLUEDROID "${BTSTACK_ROOT}/3rd-party/bluedroid/encoder/srce/*.c" "${BTSTACK_ROOT}/3rd-party/bluedroid/decoder/srce/*.c")
 file(GLOB SOURCES_CLASSIC   "${BTSTACK_ROOT}/src/classic/*.c")
@@ -144,6 +128,25 @@ list(SORT SOURCES)
 
 # create static lib
 add_library(btstack STATIC ${SOURCES})
+
+# pkgconfig
+find_package(PkgConfig)
+
+# portaudio
+if (PkgConfig_FOUND)
+	pkg_check_modules(PORTAUDIO portaudio-2.0)
+	if(PORTAUDIO_FOUND)
+		message("HAVE_PORTAUDIO")
+		include_directories(${PORTAUDIO_INCLUDE_DIRS})
+		link_directories(${PORTAUDIO_LIBRARY_DIRS})
+		link_libraries(${PORTAUDIO_LIBRARIES})
+		add_compile_definitions(HAVE_PORTAUDIO)
+	endif()
+endif()
+
+# pthread
+find_package(Threads)
+link_libraries(${CMAKE_THREAD_LIBS_INIT})
 
 # Add NXP Support
 include(${BTSTACK_ROOT}/chipset/nxp/nxp.cmake)

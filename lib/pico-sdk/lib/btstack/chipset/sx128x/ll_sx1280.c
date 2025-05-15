@@ -944,7 +944,7 @@ const static RadioCallbacks_t Callbacks =
 static void ll_emit_hci_event(const hci_event_t * event, ...){
     va_list argptr;
     va_start(argptr, event);
-    uint16_t length = hci_event_create_from_template_and_arglist(ll_outgoing_hci_event, event, argptr);
+    uint16_t length = hci_event_create_from_template_and_arglist(ll_outgoing_hci_event, sizeof(ll_outgoing_hci_event), event, argptr);
     va_end(argptr);
     controller_packet_handler(HCI_EVENT_PACKET, ll_outgoing_hci_event, length);
 }
@@ -1133,7 +1133,7 @@ static void ll_handle_control(ll_pdu_t * rx_packet){
             ctx.channel_map_update_pending   = true;
             break;
         case PDU_DATA_LLCTRL_TYPE_CONN_UPDATE_IND:
-            ctx.conn_param_update_win_size        = tx_packet->payload[1];
+            ctx.conn_param_update_win_size        = rx_packet->payload[1];
             ctx.conn_param_update_win_offset      = little_endian_read_16(rx_packet->payload, 2);
             ctx.conn_param_update_interval_1250us = little_endian_read_16(rx_packet->payload, 4);
             ctx.conn_param_update_latency         = little_endian_read_16(rx_packet->payload, 6);

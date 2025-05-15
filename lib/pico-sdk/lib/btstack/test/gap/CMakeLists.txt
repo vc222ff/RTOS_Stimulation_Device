@@ -4,11 +4,19 @@ project(test-gap)
 # find pkgconfig
 find_package(PkgConfig REQUIRED)
 
-# add CppUTest
-include_directories("/usr/local/include")
-link_directories("/usr/local/lib")
-link_libraries( CppUTest )
-link_libraries( CppUTestExt )
+# pkgconfig required to link cpputest
+find_package(PkgConfig REQUIRED)
+
+# CppuTest
+pkg_check_modules(CPPUTEST REQUIRED CppuTest)
+include_directories(${CPPUTEST_INCLUDE_DIRS})
+link_directories(${CPPUTEST_LIBRARY_DIRS})
+link_libraries(${CPPUTEST_LIBRARIES})
+
+# ASAN
+add_compile_options( -DHAVE_ASSERT)
+add_compile_options( -g -fsanitize=address)
+add_link_options(       -fsanitize=address)
 
 include_directories(.)
 include_directories(../../src)

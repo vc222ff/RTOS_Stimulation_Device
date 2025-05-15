@@ -1,4 +1,5 @@
 from machine import Pin, I2C, SoftI2C
+from time import sleep
 
 # Hardware I2C
 hw_i2c = I2C(0, scl=Pin(5), sda=Pin(4), freq=100000)
@@ -13,6 +14,11 @@ print(dir(machine))
 print("Hardware I2C scan result:", hw_i2c.scan())
 print("Software I2C scan result:", sw_i2c.scan())
 
+led = Pin("LED", Pin.OUT)
+
+while True:
+    led.toggle()
+    sleep(0.5)
 
 
 #from machine import Pin, I2C, SoftI2C

@@ -692,6 +692,10 @@ static void hfp_hf_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                             status = hfp_subevent_echo_canceling_and_noise_reduction_deactivate_get_status(event);
                             report_status(status, "Echo Canceling and Noise Reduction Deactivate");
                             break;
+                        case HFP_SUBEVENT_APPLE_EXTENSION_SUPPORTED:
+                            printf("Apple Extension supported: %s\n",
+                                   hfp_subevent_apple_extension_supported_get_supported(event) ? "yes" : "no");
+                            break;
                         default:
                             break;
                     }
@@ -745,21 +749,24 @@ int btstack_main(int argc, const char * argv[]){
         (1<<HFP_HFSF_VOICE_RECOGNITION_TEXT) |
         (1<<HFP_HFSF_EC_NR_FUNCTION) |
         (1<<HFP_HFSF_REMOTE_VOLUME_CONTROL);
-    int wide_band_speech = 1;
+
     hfp_hf_init(rfcomm_channel_nr);
     hfp_hf_init_supported_features(hf_supported_features);
     hfp_hf_init_hf_indicators(sizeof(indicators)/sizeof(uint16_t), indicators);
     hfp_hf_init_codecs(sizeof(codecs), codecs);
     hfp_hf_register_packet_handler(hfp_hf_packet_handler);
-
+    // Set Apple Accessory Information: features = battery reporting & docked/powered, battery=9, docked=1
+    hfp_hf_apple_set_identification(BLUETOOTH_COMPANY_ID_BLUEKITCHEN_GMBH, 0x0001, "0001", 3);
+    hfp_hf_apple_set_battery_level(9);
+    hfp_hf_apple_set_docked_state(1);
 
     // Configure SDP
 
     // - Create and register HFP HF service record
     memset(hfp_service_buffer, 0, sizeof(hfp_service_buffer));
-    hfp_hf_create_sdp_record(hfp_service_buffer, sdp_create_service_record_handle(),
-                             rfcomm_channel_nr, hfp_hf_service_name, hf_supported_features, wide_band_speech);
-    printf("SDP service record size: %u\n", de_get_len(hfp_service_buffer));
+    hfp_hf_create_sdp_record_with_codecs(hfp_service_buffer, sdp_create_service_record_handle(),
+                             rfcomm_channel_nr, hfp_hf_service_name, hf_supported_features, sizeof(codecs), codecs);
+    btstack_assert(de_get_len( hfp_service_buffer) <= sizeof(hfp_service_buffer));
     sdp_register_service(hfp_service_buffer);
 
     // Configure GAP - discovery / connection

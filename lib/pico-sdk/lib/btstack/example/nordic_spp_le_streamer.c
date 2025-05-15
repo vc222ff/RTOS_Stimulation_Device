@@ -179,19 +179,26 @@ static void hci_packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *
                 printf("To start the streaming, please run nRF Toolbox -> UART to connect.\n");
             } 
             break;
-        case HCI_EVENT_LE_META:
-            switch (hci_event_le_meta_get_subevent_code(packet)) {
-                case HCI_SUBEVENT_LE_CONNECTION_COMPLETE:
+        case HCI_EVENT_META_GAP:
+            switch (hci_event_gap_meta_get_subevent_code(packet)) {
+                case GAP_SUBEVENT_LE_CONNECTION_COMPLETE:
                     // print connection parameters (without using float operations)
-                    con_handle    = hci_subevent_le_connection_complete_get_connection_handle(packet);
-                    conn_interval = hci_subevent_le_connection_complete_get_conn_interval(packet);
+                    con_handle    = gap_subevent_le_connection_complete_get_connection_handle(packet);
+                    conn_interval = gap_subevent_le_connection_complete_get_conn_interval(packet);
                     printf("LE Connection - Connection Interval: %u.%02u ms\n", conn_interval * 125 / 100, 25 * (conn_interval & 3));
-                    printf("LE Connection - Connection Latency: %u\n", hci_subevent_le_connection_complete_get_conn_latency(packet));
+                    printf("LE Connection - Connection Latency: %u\n", gap_subevent_le_connection_complete_get_conn_latency(packet));
 
-                    // request min con interval 15 ms for iOS 11+ 
+                    // request min con interval 15 ms for iOS 11+
                     printf("LE Connection - Request 15 ms connection interval\n");
                     gap_request_connection_parameter_update(con_handle, 12, 12, 4, 0x0048);
                     break;
+                default:
+                    break;
+            }
+            break;
+
+        case HCI_EVENT_LE_META:
+            switch (hci_event_le_meta_get_subevent_code(packet)) {
                 case HCI_SUBEVENT_LE_CONNECTION_UPDATE_COMPLETE:
                     // print connection parameters (without using float operations)
                     con_handle    = hci_subevent_le_connection_update_complete_get_connection_handle(packet);
@@ -241,14 +248,7 @@ static void att_packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *
             context->test_data_len = btstack_min(mtu - 3, sizeof(context->test_data));
             printf("%c: ATT MTU = %u => use test data of len %u\n", context->name, mtu, context->test_data_len);
             break;
-        case ATT_EVENT_DISCONNECTED:
-            context = connection_for_conn_handle(att_event_disconnected_get_handle(packet));
-            if (!context) break;
-            // free connection
-            printf("%c: Disconnect\n", context->name);                    
-            context->le_notification_enabled = 0;
-            context->connection_handle = HCI_CON_HANDLE_INVALID;
-            break;
+
         default:
             break;
     }
@@ -314,16 +314,20 @@ static void nordic_spp_packet_handler(uint8_t packet_type, uint16_t channel, uin
                     con_handle = gattservice_subevent_spp_service_connected_get_con_handle(packet);
                     context = connection_for_conn_handle(con_handle);
                     if (!context) break;
+                    printf("%c: Nordic SPP connected\n", context->name);
                     context->le_notification_enabled = 1;
                     test_reset(context);
                     context->send_request.callback = &nordic_can_send;
                     nordic_spp_service_server_request_can_send_now(&context->send_request, context->connection_handle);
                     break;
                 case GATTSERVICE_SUBEVENT_SPP_SERVICE_DISCONNECTED:
-                    con_handle = HCI_CON_HANDLE_INVALID;
+                    con_handle = gattservice_subevent_spp_service_disconnected_get_con_handle(packet);
                     context = connection_for_conn_handle(con_handle);
                     if (!context) break;
+                    // free connection
+                    printf("%c: Nordic SPP disconnected\n", context->name);
                     context->le_notification_enabled = 0;
+                    context->connection_handle = HCI_CON_HANDLE_INVALID;
                     break;
                 default:
                     break;

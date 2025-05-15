@@ -63,9 +63,9 @@
  * \anchor CYW43_VERSION_
  */
 //!\{
-#define CYW43_VERSION_MAJOR 0
-#define CYW43_VERSION_MINOR 9
-#define CYW43_VERSION_MICRO 0
+#define CYW43_VERSION_MAJOR 1
+#define CYW43_VERSION_MINOR 0
+#define CYW43_VERSION_MICRO 3
 //!\}
 
 /*!
@@ -99,7 +99,7 @@
 #define CYW43_LINK_DOWN         (0)     ///< link is down
 #define CYW43_LINK_JOIN         (1)     ///< Connected to wifi
 #define CYW43_LINK_NOIP         (2)     ///< Connected to wifi, but no IP address
-#define CYW43_LINK_UP           (3)     ///< Connect to wifi with an IP address
+#define CYW43_LINK_UP           (3)     ///< Connected to wifi with an IP address
 #define CYW43_LINK_FAIL         (-1)    ///< Connection failed
 #define CYW43_LINK_NONET        (-2)    ///< No matching SSID found (could be out of range, or down)
 #define CYW43_LINK_BADAUTH      (-3)    ///< Authenticatation failure
@@ -209,6 +209,7 @@ int cyw43_send_ethernet(cyw43_t *self, int itf, size_t len, const void *buf, boo
  *
  * \see cyw43_pm_value
  * \see CYW43_DEFAULT_PM
+ * \see CYW43_NONE_PM
  * \see CYW43_AGGRESSIVE_PM
  * \see CYW43_PERFORMANCE_PM
  *
@@ -474,6 +475,7 @@ static inline void cyw43_wifi_ap_set_auth(cyw43_t *self, uint32_t auth) {
  *
  * \param self the driver state object. This should always be \c &cyw43_state
  * \param max_stas Returns the maximum number of devices (STAs) that can be connected to the access point
+ * (set to 0 on error)
  */
 void cyw43_wifi_ap_get_max_stas(cyw43_t *self, int *max_stas);
 
@@ -484,9 +486,10 @@ void cyw43_wifi_ap_get_max_stas(cyw43_t *self, int *max_stas);
  * connected to the wifi access point.
  *
  * \param self the driver state object. This should always be \c &cyw43_state
- * \param num_stas Returns the number of devices (STA) connected to the access point
- * \param macs Returns the mac addresses of devies (STA) connected to the access point.
- * The supplied buffer should have enough room for 6 bytes per mac address.
+ * \param num_stas Caller must provide the number of MACs that will fit in the macs buffer;
+ * The supplied buffer should have enough room for 6 bytes per MAC address.
+ * Returns the number of devices (STA) connected to the access point.
+ * \param macs Returns up to num_stas MAC addresses of devices (STA) connected to the access point.
  * Call \ref cyw43_wifi_ap_get_max_stas to determine how many mac addresses can be returned.
  */
 void cyw43_wifi_ap_get_stas(cyw43_t *self, int *num_stas, uint8_t *macs);
@@ -610,6 +613,7 @@ int cyw43_gpio_get(cyw43_t *self, int gpio, bool *val);
  * CYW43_PM2_POWERSAVE_MODE | Power saving with High throughput (preferred). Saves power when there is no wifi activity for some time.
  *
  * \see \ref CYW43_DEFAULT_PM
+ * \see \ref CYW43_NONE_PM
  * \see \ref CYW43_AGGRESSIVE_PM
  * \see \ref CYW43_PERFORMANCE_PM
  *
@@ -631,17 +635,22 @@ static inline uint32_t cyw43_pm_value(uint8_t pm_mode, uint16_t pm2_sleep_ret_ms
 /*!
  * \brief Default power management mode
  */
-#define CYW43_DEFAULT_PM cyw43_pm_value(CYW43_PM2_POWERSAVE_MODE, 200, 1, 1, 10)
+#define CYW43_DEFAULT_PM (CYW43_PERFORMANCE_PM)
+
+/*!
+ * \brief No power management
+ */
+#define CYW43_NONE_PM (cyw43_pm_value(CYW43_NO_POWERSAVE_MODE, 10, 0, 0, 0))
 
 /*!
  * \brief Aggressive power management mode for optimal power usage at the cost of performance
  */
-#define CYW43_AGGRESSIVE_PM cyw43_pm_value(CYW43_PM2_POWERSAVE_MODE, 2000, 1, 1, 10)
+#define CYW43_AGGRESSIVE_PM (cyw43_pm_value(CYW43_PM1_POWERSAVE_MODE, 10, 0, 0, 0))
 
 /*!
  * \brief Performance power management mode where more power is used to increase performance
  */
-#define CYW43_PERFORMANCE_PM cyw43_pm_value(CYW43_PM2_POWERSAVE_MODE, 20, 1, 1, 1)
+#define CYW43_PERFORMANCE_PM (cyw43_pm_value(CYW43_PM2_POWERSAVE_MODE, 200, 1, 1, 10))
 
 #if CYW43_ENABLE_BLUETOOTH
 /*!

@@ -128,6 +128,7 @@ ${BTSTACK_ROOT}/src/classic/avrcp_target.c \
 ${BTSTACK_ROOT}/src/classic/bnep.c \
 ${BTSTACK_ROOT}/src/classic/btstack_cvsd_plc.c \
 ${BTSTACK_ROOT}/src/classic/btstack_link_key_db_tlv.c \
+${BTSTACK_ROOT}/src/classic/btstack_sbc_bluedroid.c \
 ${BTSTACK_ROOT}/src/classic/btstack_sbc_decoder_bluedroid.c \
 ${BTSTACK_ROOT}/src/classic/btstack_sbc_encoder_bluedroid.c \
 ${BTSTACK_ROOT}/src/classic/btstack_sbc_plc.c \
@@ -156,6 +157,7 @@ ${BTSTACK_ROOT}/src/classic/spp_server.c \
 ${BTSTACK_ROOT}/src/hci.c \
 ${BTSTACK_ROOT}/src/hci_cmd.c \
 ${BTSTACK_ROOT}/src/hci_dump.c \
+${BTSTACK_ROOT}/src/hci_event_builder.c \
 ${BTSTACK_ROOT}/src/hci_transport_h4.c \
 ${BTSTACK_ROOT}/src/l2cap.c \
 ${BTSTACK_ROOT}/src/l2cap_signaling.c \

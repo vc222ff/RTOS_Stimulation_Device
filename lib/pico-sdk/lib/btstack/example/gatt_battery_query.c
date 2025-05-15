@@ -171,7 +171,6 @@ static void hci_event_handler(uint8_t packet_type, uint16_t channel, uint8_t *pa
     UNUSED(size);
 
     /* LISTING_RESUME */
-    bd_addr_t address;
 
     if (packet_type != HCI_EVENT_PACKET){
         return;  
@@ -198,8 +197,9 @@ static void hci_event_handler(uint8_t packet_type, uint16_t channel, uint8_t *pa
         case GAP_EVENT_ADVERTISING_REPORT:
             if (app_state != APP_STATE_W4_SCAN_RESULT) return;
 
-            gap_event_advertising_report_get_address(packet, address);
-            if (blacklist_contains(address)) {
+            gap_event_advertising_report_get_address(packet, report.address);
+            report.address_type = gap_event_advertising_report_get_address_type(packet);
+            if (blacklist_contains(report.address)) {
                 break;
             }
             dump_advertising_report(packet);
@@ -212,16 +212,16 @@ static void hci_event_handler(uint8_t packet_type, uint16_t channel, uint8_t *pa
             break;
 
         /* LISTING_RESUME */
-        case HCI_EVENT_LE_META:
+        case HCI_EVENT_META_GAP:
             // Wait for connection complete
-            if (hci_event_le_meta_get_subevent_code(packet) !=  HCI_SUBEVENT_LE_CONNECTION_COMPLETE) break;
+            if (hci_event_gap_meta_get_subevent_code(packet) !=  GAP_SUBEVENT_LE_CONNECTION_COMPLETE) break;
             
             /* LISTING_PAUSE */
             if (app_state != APP_STATE_W4_CONNECT) return;
             
             /* LISTING_RESUME */
             // Get connection handle from event
-            connection_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
+            connection_handle = gap_subevent_le_connection_complete_get_connection_handle(packet);
             
             // Connect to remote Battery Service. 
             // On succesful connection, the client tries to register for notifications. If notifications 
@@ -301,7 +301,7 @@ static void gatt_client_event_handler(uint8_t packet_type, uint16_t channel, uin
                 printf("Battery level read failed, ATT Error 0x%02x\n", att_status);
             } else {
                 printf("Service index: %d, Battery level: %d\n", 
-                    gattservice_subevent_battery_service_level_get_sevice_index(packet), 
+                    gattservice_subevent_battery_service_level_get_service_index(packet),
                     gattservice_subevent_battery_service_level_get_level(packet));
                     
             }
@@ -317,23 +317,27 @@ int btstack_main(int argc, const char * argv[]);
 int btstack_main(int argc, const char * argv[]){
 
     // parse address if command line arguments are provided
-    int arg = 1;
+    int arg;
     cmdline_addr_found = 0;
     
-    while (arg < argc) {
+    for (arg = 1; arg < argc; arg++) {
         if(!strcmp(argv[arg], "-a") || !strcmp(argv[arg], "--address")){
-            arg++;
-            cmdline_addr_found = sscanf_bd_addr(argv[arg], cmdline_addr);
-            arg++;
-            if (!cmdline_addr_found) exit(1);
-            continue;
+            if (arg + 1 < argc) {
+                arg++;
+                cmdline_addr_found = sscanf_bd_addr(argv[arg], cmdline_addr);
+            }
+            if (!cmdline_addr_found) {
+                fprintf(stderr, "\nUsage: %s [-a|--address aa:bb:cc:dd:ee:ff]\n", argv[0]);
+                fprintf(stderr, "If no argument is provided, %s will start scanning and connect to the first found device.\n"
+                                "To connect to a specific device use argument [-a].\n\n", argv[0]);
+                return 1;
+            }
         }
-        fprintf(stderr, "\nUsage: %s [-a|--address aa:bb:cc:dd:ee:ff]\n", argv[0]);
-        fprintf(stderr, "If no argument is provided, GATT browser will start scanning and connect to the first found device.\nTo connect to a specific device use argument [-a].\n\n");
-        return 0;
     }
-    (void)argv;
-
+    if (!cmdline_addr_found) {
+        fprintf(stderr, "No specific address specified or found; start scanning for any advertiser.\n");
+    }
+    
     battery_service_client_setup();
 
     app_state = APP_STATE_IDLE;

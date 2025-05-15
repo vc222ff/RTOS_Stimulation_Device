@@ -1,6 +1,10 @@
 # Makefile for libusb based PTS tests
 BTSTACK_ROOT = ../..
 
+# CppuTest from pkg-config
+CFLAGS  += ${shell pkg-config --cflags CppuTest}
+LDFLAGS += ${shell pkg-config --libs   CppuTest}
+
 CORE += \
 	btstack_memory.c            \
 	btstack_linked_list.c	    \
@@ -17,6 +21,7 @@ COMMON += \
 	hci.c			            \
 	ad_parser.c                 \
 	hci_cmd.c		            \
+	hci_event_builder.c         \
 	hci_dump.c		            \
 	hci_dump_posix_fs.c         \
 	l2cap.c			            \

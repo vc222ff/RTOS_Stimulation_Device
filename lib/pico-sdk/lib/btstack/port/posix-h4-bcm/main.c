@@ -35,7 +35,7 @@
  *
  */
 
-#define __BTSTACK_FILE__ "main.c"
+#define BTSTACK_FILE__ "main.c"
 
 // *****************************************************************************
 //
@@ -69,6 +69,7 @@
 #include "hci_transport_h4.h"
 #include "hci_dump_posix_fs.h"
 #include "hci_dump_posix_stdout.h"
+#include "btstack_audio.h"
 
 
 int btstack_main(int argc, const char * argv[]);
@@ -167,7 +168,7 @@ int main(int argc, const char * argv[]){
         
     // pick serial port and configure uart driver
     transport_config.device_name = "/dev/tty.usbserial-FT1XBGIM"; // murata m.2 adapter
-
+    printf("tty: %s", transport_config.device_name);
     // get BCM chipset driver
     const btstack_chipset_t * chipset = btstack_chipset_bcm_instance();
     chipset->init(&transport_config);
@@ -217,6 +218,11 @@ static void phase2(int status){
     }
 
     printf("Phase 2: Main app\n");
+
+#ifdef HAVE_PORTAUDIO
+    btstack_audio_sink_set_instance(btstack_audio_portaudio_sink_get_instance());
+    btstack_audio_source_set_instance(btstack_audio_portaudio_source_get_instance());
+#endif
 
     // setup app
     btstack_main(main_argc, main_argv);

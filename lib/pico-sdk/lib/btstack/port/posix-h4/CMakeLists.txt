@@ -7,30 +7,23 @@ SET(BTSTACK_ROOT ${CMAKE_SOURCE_DIR}/../..)
 # extra compiler warnings
 if ("${CMAKE_C_COMPILER_ID}" MATCHES ".*Clang.*")
 	# using Clang
-	SET(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wunused-variable -Wswitch-default -Werror")
+    SET(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wunused-variable -Wswitch-default -Wall -Wextra -Werror")
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 	# using GCC
-	SET(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wunused-but-set-variable -Wunused-variable -Wswitch-default -Werror")
+    SET(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wunused-but-set-variable -Wunused-variable -Wswitch-default -Wall -Wextra -Werror")
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "Intel")
 	# using Intel C++
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
 	# using Visual Studio C++
 endif()
 
-# pkgconfig
-find_package(PkgConfig QUIET)
-
-# portaudio
-if (PkgConfig_FOUND)
-	pkg_check_modules(PORTAUDIO REQUIRED portaudio-2.0)
-	if(PORTAUDIO_FOUND)
-		message("HAVE_PORTAUDIO")
-		include_directories(${PORTAUDIO_INCLUDE_DIRS})
-		link_directories(${PORTAUDIO_LIBRARY_DIRS})
-		link_libraries(${PORTAUDIO_LIBRARIES})
-		# CMake 3.12 - add_compile_definitions(HAVE_PORTAUDIO)
-		SET(CMAKE_C_FLAGS  "-DHAVE_PORTAUDIO")
-	endif()
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+  add_compile_options(
+      -fsanitize=undefined -fsanitize=address
+  )
+  add_link_options(
+      -fsanitize=undefined -fsanitize=address
+  )
 endif()
 
 # to generate .h from .gatt files
@@ -166,6 +159,25 @@ list(SORT SOURCES)
 # create static lib
 add_library(btstack STATIC ${SOURCES})
 
+# pkgconfig
+find_package(PkgConfig)
+
+# portaudio
+if (PkgConfig_FOUND)
+	pkg_check_modules(PORTAUDIO portaudio-2.0)
+	if(PORTAUDIO_FOUND)
+		message("HAVE_PORTAUDIO")
+		include_directories(${PORTAUDIO_INCLUDE_DIRS})
+		link_directories(${PORTAUDIO_LIBRARY_DIRS})
+		link_libraries(${PORTAUDIO_LIBRARIES})
+		add_compile_definitions(HAVE_PORTAUDIO)
+	endif()
+endif()
+
+# pthread
+find_package(Threads)
+link_libraries(${CMAKE_THREAD_LIBS_INIT})
+
 # Add CC256x Support and specify init script
 set (CC256X_INIT_SCRIPT bluetooth_init_cc2564C_1.5.c)
 include(${BTSTACK_ROOT}/chipset/cc256x/cc256x.cmake)
@@ -198,5 +210,5 @@ foreach(EXAMPLE ${EXAMPLES})
 		message("example ${EXAMPLE}")
 	endif()
 	add_executable(${EXAMPLE} ${SOURCES_EXAMPLE})
-	target_link_libraries(${EXAMPLE} btstack)
+	target_link_libraries(${EXAMPLE} btstack pthread)
 endforeach(EXAMPLE)

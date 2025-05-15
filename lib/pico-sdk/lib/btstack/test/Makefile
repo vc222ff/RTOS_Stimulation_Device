@@ -9,6 +9,7 @@ SUBDIRS =  \
 	base64 \
 	ble_client \
 	btstack_link_key_db \
+	btstack_util \
 	btstack_memory \
 	classic-oob-pairing \
 	crypto \
@@ -49,6 +50,7 @@ SUBDIRS_BLE = \
 	att_db \
 	ble_client \
 	btstack_memory \
+	btstack_util \
 	crypto \
 	embedded \
 	gap \
@@ -110,7 +112,7 @@ coverage-unit.info: subdirs-coverage
 	# run tests
 	$(MAKE) subdirs-coverage
 	# collect traces
-	lcov --capture --rc lcov_branch_coverage=1 --directory . --exclude "/Applications/*" --exclude "/Library/*" --exclude "/usr/*" --exclude "*/test/*" --output-file coverage-unit.info
+	lcov --capture --ignore-errors inconsistent --ignore-errors unused --rc lcov_branch_coverage=1 --directory . --exclude "/Applications/*" --exclude "/Library/*" --exclude "/usr/*" --exclude "*/test/*" --output-file coverage-unit.info
 
 coverage-unit-ble.info: subdirs-coverage-ble
 	# delete trace data
@@ -118,7 +120,7 @@ coverage-unit-ble.info: subdirs-coverage-ble
 	# run tests
 	$(MAKE) subdirs-coverage-ble
 	# collect traces
-	lcov --capture --rc lcov_branch_coverage=1 --directory . --exclude "/Applications/*" --exclude "/Library/*" --exclude "/usr/*" --exclude "*/test/*" --output-file coverage-unit-ble.info
+	lcov --capture --ignore-errors inconsistent --ignore-errors unused --rc lcov_branch_coverage=1 --directory . --exclude "/Applications/*" --exclude "/Library/*" --exclude "/usr/*" --exclude "*/test/*" --output-file coverage-unit-ble.info
 
 
 coverage-all: coverage-unit.info

@@ -20,6 +20,8 @@ include_directories(${LIBUSB_INCLUDE_DIRS})
 link_directories(${LIBUSB_LIBRARY_DIRS})
 link_libraries(${LIBUSB_LIBRARIES})
 
+include_directories(../../3rd-party/bluedroid/decoder/include)
+include_directories(../../3rd-party/bluedroid/encoder/include)
 include_directories(../../3rd-party/micro-ecc)
 include_directories(../../3rd-party/rijndael)
 include_directories(../../3rd-party/tinydir)
@@ -79,13 +81,18 @@ foreach(EXAMPLE_FILE ${EXAMPLES_C})
 	target_link_libraries(${EXAMPLE} btstack)
 endforeach(EXAMPLE_FILE)
 
-## hard-coded tests that use CPPUtest
+# pkgconfig required to link cpputest
+find_package(PkgConfig REQUIRED)
+
+# CppuTest
+pkg_check_modules(CPPUTEST REQUIRED CppuTest)
+include_directories(${CPPUTEST_INCLUDE_DIRS})
+link_directories(${CPPUTEST_LIBRARY_DIRS})
+link_libraries(${CPPUTEST_LIBRARIES})
 
 message("example mesh_message_test")
-include_directories( /usr/local/include)
-link_directories( /usr/local/lib)
-link_libraries(CppUTest CppUTestExt)
-add_executable(mesh_message_test 
+
+add_executable(mesh_message_test
 ../../src/mesh/mesh_foundation.c
 ../../src/mesh/mesh_node.c
 ../../src/mesh/mesh_iv_index_seq_number.c

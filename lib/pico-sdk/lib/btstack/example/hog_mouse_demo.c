@@ -125,9 +125,8 @@ static void hog_mouse_setup(void){
 
     // setup SM: Display only
     sm_init();
-    sm_set_io_capabilities(IO_CAPABILITY_DISPLAY_ONLY);
-    // sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION | SM_AUTHREQ_BONDING);
-    sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+    sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
+    sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION | SM_AUTHREQ_BONDING);
 
     // setup ATT server
     att_server_init(profile_data, NULL, NULL);
@@ -167,7 +166,7 @@ static void hog_mouse_setup(void){
 
 // HID Report sending
 static void send_report(uint8_t buttons, int8_t dx, int8_t dy){
-    uint8_t report[] = { buttons, (uint8_t) dx, (uint8_t) dy, 0};
+    uint8_t report[] = { buttons, (uint8_t) dx, (uint8_t) dy };
     switch (protocol_mode){
         case 0:
             hids_device_send_boot_mouse_input_report(con_handle, report, sizeof(report));
@@ -331,15 +330,21 @@ static void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *pack
         case L2CAP_EVENT_CONNECTION_PARAMETER_UPDATE_RESPONSE:
             printf("L2CAP Connection Parameter Update Complete, response: %x\n", l2cap_event_connection_parameter_update_response_get_result(packet));
             break;
-        case HCI_EVENT_LE_META:
-            switch (hci_event_le_meta_get_subevent_code(packet)) {
-                case HCI_SUBEVENT_LE_CONNECTION_COMPLETE:
+        case HCI_EVENT_META_GAP:
+            switch (hci_event_gap_meta_get_subevent_code(packet)) {
+                case GAP_SUBEVENT_LE_CONNECTION_COMPLETE:
                     // print connection parameters (without using float operations)
-                    conn_interval = hci_subevent_le_connection_complete_get_conn_interval(packet);
+                    conn_interval = gap_subevent_le_connection_complete_get_conn_interval(packet);
                     printf("LE Connection Complete:\n");
                     printf("- Connection Interval: %u.%02u ms\n", conn_interval * 125 / 100, 25 * (conn_interval & 3));
-                    printf("- Connection Latency: %u\n", hci_subevent_le_connection_complete_get_conn_latency(packet));
+                    printf("- Connection Latency: %u\n", gap_subevent_le_connection_complete_get_conn_latency(packet));
                     break;
+                default:
+                    break;
+            }
+            break;
+        case HCI_EVENT_LE_META:
+            switch (hci_event_le_meta_get_subevent_code(packet)) {
                 case HCI_SUBEVENT_LE_CONNECTION_UPDATE_COMPLETE:
                     // print connection parameters (without using float operations)
                     conn_interval = hci_subevent_le_connection_update_complete_get_conn_interval(packet);

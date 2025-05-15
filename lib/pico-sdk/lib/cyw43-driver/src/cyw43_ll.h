@@ -75,6 +75,7 @@
 #define CYW43_EV_LINK                   (16)
 #define CYW43_EV_PRUNE                  (23)
 #define CYW43_EV_PSK_SUP                (46)
+#define CYW43_EV_ICV_ERROR              (49)
 #define CYW43_EV_ESCAN_RESULT           (69)
 #define CYW43_EV_CSA_COMPLETE_IND       (80)
 #define CYW43_EV_ASSOC_REQ_IE           (87)
@@ -160,10 +161,6 @@
 #define CYW43_REASON_SUP_DEAUTH             (14)    // received FC_DEAUTH
 #define CYW43_REASON_SUP_WPA_PSK_TMO        (15)    // WPA PSK 4-way handshake timeout
 
-// Values used for STA and AP auth settings
-#define CYW43_WPA_AUTH_PSK (0x0004)
-#define CYW43_WPA2_AUTH_PSK (0x0080)
-
 /**
  * \name Authorization types
  * \brief Used when setting up an access point, or connecting to an access point
@@ -174,6 +171,8 @@
 #define CYW43_AUTH_WPA_TKIP_PSK   (0x00200002)  ///< WPA authorisation
 #define CYW43_AUTH_WPA2_AES_PSK   (0x00400004)  ///< WPA2 authorisation (preferred)
 #define CYW43_AUTH_WPA2_MIXED_PSK (0x00400006)  ///< WPA2/WPA mixed authorisation
+#define CYW43_AUTH_WPA3_SAE_AES_PSK  (0x01000004)   ///< WPA3 AES authorisation
+#define CYW43_AUTH_WPA3_WPA2_AES_PSK (0x01400004)   ///< WPA2/WPA3 authorisation
 //!\}
 
 /*!

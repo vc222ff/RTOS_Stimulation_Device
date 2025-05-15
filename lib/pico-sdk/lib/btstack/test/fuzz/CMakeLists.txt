@@ -3,12 +3,15 @@ cmake_minimum_required (VERSION 3.5)
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang)
 
-project(BTstack)
+project(BTstack-Fuzzer)
+
+SET(BTSTACK_ROOT ${CMAKE_SOURCE_DIR}/../..)
 
 include_directories(../../3rd-party/micro-ecc)
 include_directories(../../3rd-party/bluedroid/decoder/include)
 include_directories(../../3rd-party/bluedroid/encoder/include)
 include_directories(../../3rd-party/md5)
+include_directories(../../3rd-party/lc3-google/include)
 include_directories(../../3rd-party/hxcmod-player)
 include_directories(../../3rd-party/hxcmod-player/mod)
 include_directories(../../3rd-party/lwip/core/src/include)
@@ -36,6 +39,7 @@ file(GLOB SOURCES_HXCMOD    "../../3rd-party/hxcmod-player/*.c"  "../../3rd-part
 file(GLOB SOURCES_RIJNDAEL  "../../3rd-party/rijndael/rijndael.c")
 file(GLOB SOURCES_POSIX     "../../platform/posix/*.c")
 file(GLOB SOURCES_LIBUSB    "../../port/libusb/*.c" "../../platform/libusb/*.c")
+file(GLOB SOURCES_LC3_GOOGLE "../../3rd-party/lc3-google/src/*.c")
 
 set(LWIP_CORE_SRC
         ../../3rd-party/lwip/core/src/core/def.c
@@ -98,6 +102,7 @@ set(SOURCES
         ${SOURCES_CLASSIC}
         ${SOURCES_UECC}
         ${SOURCES_HXCMOD}
+        ${SOURCES_LC3_GOOGLE}
         )
 list(SORT SOURCES)
 
@@ -113,6 +118,22 @@ file(GLOB TARGETS_C "fuzz_*.c")
 # create targets
 foreach(TARGET_FILE ${TARGETS_C})
     get_filename_component(EXAMPLE ${TARGET_FILE} NAME_WE)
-    add_executable(${EXAMPLE} ${TARGET_FILE} )
-    target_link_libraries(${EXAMPLE} btstack)
+
+    if ( "fuzz_l2cap" MATCHES ${EXAMPLE} )
+        add_executable(${EXAMPLE} ${TARGET_FILE}
+            ${BTSTACK_ROOT}/src/l2cap.c
+            ${BTSTACK_ROOT}/src/l2cap_signaling.c
+            ${BTSTACK_ROOT}/src/btstack_run_loop.c
+            ${BTSTACK_ROOT}/src/btstack_util.c
+            ${BTSTACK_ROOT}/src/btstack_linked_list.c
+            ${BTSTACK_ROOT}/src/btstack_memory.c
+            ${BTSTACK_ROOT}/src/btstack_memory_pool.c
+            ${BTSTACK_ROOT}/src/hci_cmd.c
+            ${BTSTACK_ROOT}/src/hci_dump.c
+            ${SOURCES_POSIX}
+        )
+    else()
+        add_executable(${EXAMPLE} ${TARGET_FILE} )
+        target_link_libraries(${EXAMPLE} btstack)
+    endif()
 endforeach(TARGET_FILE)
