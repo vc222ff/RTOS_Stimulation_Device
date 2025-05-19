@@ -47,43 +47,89 @@ void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint
     UNUSED(channel);
     bd_addr_t local_addr;
 
-
+    // Aborts if packet is not of HCI event type.
     if (packet_type != HCI_EVENT_PACKET) return;
 
+    // Event type.
     uint8_t event_type = hci_event_packet_get_type(packet);
-    switch(event_type){
-
-        case BTSTACK_EVENT_STATE:
-            if (btstack_event_state_get_state(packet) != HCI_STATE_WORKING) return;
+    
+    // Switch statement for BLE event cases.
+    switch(event_type) {
+        case BTSTACK_EVENT_STATE: {
+            uint8_t state = btstack_event_state_get_state(packet);
+            printf("[BT] Stack state changed: 0x%02x\n", state);
+            if (state != HCI_STATE_WORKING) return;
+            
             gap_local_bd_addr(local_addr);
-            printf("BTstack up and running on %s.\n", bd_addr_to_str(local_addr));
+            printf("[BT] BTstack up and running on %s\n", bd_addr_to_str(local_addr));
 
             // Settings for BLE advertisements.
             uint16_t adv_int_min = 800;            // Min interval period.
             uint16_t adv_int_max = 800;            // Max interval period.
-            uint8_t adv_type = 0;                  // Advertisement type.
-            bd_addr_t null_addr;
+            uint8_t adv_type = 0;                  // Advertisement type (ADV_IND).
+            bd_addr_t null_addr = {0};
             memset(null_addr, 0, 6);
             gap_advertisements_set_params(adv_int_min, adv_int_max, adv_type, 0, null_addr, 0x07, 0x00);
             assert(adv_data_len <= 31);            // BLE limitation.
             gap_advertisements_set_data(adv_data_len, (uint8_t*) adv_data);
             gap_advertisements_enable(1);
+            printf("[BT] Advertising started\n");
             break;
-
-        case HCI_EVENT_DISCONNECTION_COMPLETE:
-            le_notification_enabled = 0;
-            break;
+        }
         
-        case ATT_EVENT_CAN_SEND_NOW:
-            if (send_response_next) {
-                att_server_notify(con_handle, ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE, (uint8_t*)response_payload, strlen(response_payload));
-                send_response_next = false;
+        case HCI_EVENT_LE_META: {
+            uint8_t subevent = hci_event_le_meta_get_subevent_code(packet);
+            if (subevent == HCI_SUBEVENT_LE_CONNECTION_COMPLETE) {
+                const uint8_t *subevent_data = &packet[3];
+                uint8_t status = subevent_data[0];
+                hci_con_handle_t handle = little_endian_read_16(subevent_data, 1);
+                printf("[BLE] LE Connection attempt. Status: 0x%02x, Handle: 0x%04x\n", status, handle);
+                if (status == ERROR_CODE_SUCCESS) {
+                    con_handle = handle;
+                    printf("[BLE] Successfully connected! Handle: 0x%04x\n", con_handle);
+                } else {
+                    printf("[BLE] Connection failed. Status: 0x%02x\n", status);
+                }
             } else {
-                att_server_notify(con_handle, ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE, (uint8_t*)data_payload, strlen(data_payload));
+                printf("[BLE] Unhandled LE Meta event: 0x%02x\n", subevent);
             }
             break;
-        default:
+        }
+        
+
+        case HCI_EVENT_DISCONNECTION_COMPLETE: {
+            uint8_t reason = packet[5];
+            printf("[BLE] Disconnected. Reason: 0x%02x\n", reason);
+            le_notification_enabled = 0;
             break;
+        }
+            
+        case ATT_EVENT_CAN_SEND_NOW: {
+            printf("[BLE] ATT_EVENT_CAN_SEND_NOW triggered\n");
+            if (send_response_next) {
+                printf("[BLE] Sending queued response: %s\n", response_payload);
+                att_server_notify(
+                    con_handle, 
+                    ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE, 
+                    (uint8_t*)response_payload, 
+                    strlen(response_payload)
+                );
+                send_response_next = false;
+            } else {
+                printf("[BLE] Sending standard payload: %s\n", data_payload);
+                att_server_notify(
+                    con_handle, 
+                    ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_VALUE_HANDLE, 
+                    (uint8_t*)data_payload, 
+                    strlen(data_payload));
+            }
+            break;
+        }
+
+        default: {
+            printf("[BT] Unhandled event type: 0x%02x\n", event_type);
+            break;
+        }
     }
 }
 

@@ -52,8 +52,8 @@ static float baseline_pitch_1 = 0, baseline_pitch_2 = 0;                        
 static float comp_pitch_1 = 0, comp_pitch_2 = 0;                                // Floating point values for filtered sensor pitch angles.
 static float alpha = 0.95f;                                                     // Floating point value for alpha in complementary filter.
 
-static float gold_angles[Num_Samples];                                          // Floating point array for gold standard values.
-static float trunk_angles_sensors[Num_Samples];                                 // Floating point array for trunk angle values.
+static float gold_angles[NUM_REFERENCE_SAMPLES];                                          // Floating point array for gold standard values.
+static float trunk_angles_sensors[NUM_REFERENCE_SAMPLES];                                 // Floating point array for trunk angle values.
 static uint8_t sample_count = 0;                                                // 8-bit unsigned integer for iterating sample values.
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;  // Structure for handling HCI events.
@@ -484,7 +484,7 @@ static void posture_monitor_task(void *pvParameters) {
 
         // Error validation computation.
         float trunk_angle = comp_pitch_1 - comp_pitch_2;
-        if (sample_count < Num_Samples) {
+        if (sample_count < NUM_REFERENCE_SAMPLES) {
             trunk_angles_sensors[sample_count] = trunk_angle;
             gold_angles[sample_count] = 0.0f;        }
 
@@ -556,7 +556,7 @@ int main() {
 
     // Evaluates sensor measurements against reference standard values.
     //evaluate_trunk_angle_accuracy();
-
+    
     // Creates a FreeRTOS task for posture monitoring. 
     xTaskCreate(posture_monitor_task, "PostureMonitor", 1024, NULL, 1, NULL);
 
