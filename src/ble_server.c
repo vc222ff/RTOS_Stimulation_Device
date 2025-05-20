@@ -28,9 +28,7 @@ static bool send_response_next = false;                                // Boolea
 
 static uint8_t adv_data[] = {                                          // BLE advertisement payload:
     0x02, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS,                                      // Flags: General Discoverable.
-    0x17, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,                                      // Device Name.
-    'P', 'i', 'c', 'o', ' ', '0', '0', ':', '0', '0', ':',                              // -||-
-    '0', '0', ':', '0', '0', ':', '0', '0', ':', '0', '0',                              // -||-
+    0x17, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,                                      // Device Name.                           // -||-
     0x03, BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS,              // UUIDs services.
     0x1a, 0x18,                                                                         // -||-
 };
@@ -152,9 +150,8 @@ int att_write_callback(hci_con_handle_t connection_handle, uint16_t att_handle, 
     
     if (att_handle == ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_TEMPERATURE_01_CLIENT_CONFIGURATION_HANDLE) {
         le_notification_enabled = little_endian_read_16(buffer, 0) == GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION;
-        con_handle = connection_handle;
         if (le_notification_enabled) {
-            att_server_request_can_send_now_event(con_handle);
+            att_server_request_can_send_now_event(connection_handle);
         }
         return 0;
     }

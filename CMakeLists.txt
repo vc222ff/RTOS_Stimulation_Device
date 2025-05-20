@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.13)
 SET(ProjectName c_rtos_posture)
 
 # Defines the raspberry board type
-set(PICO_BOARD pico2_w)
+set(PICO_BOARD pico_w)            # "pico_w" or "pico2_w" for Raspberry Pi WH or Raspberry Pi 2 W.
 
 # Set any variables required for importing libraries
 set(PICO_SDK_PATH ${CMAKE_CURRENT_LIST_DIR}/lib/pico-sdk)
