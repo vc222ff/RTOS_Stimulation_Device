@@ -60,7 +60,7 @@ void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint
             
             gap_local_bd_addr(local_addr);
             printf("[BT] BTstack up and running on %s\n", bd_addr_to_str(local_addr));
-
+                            
             // Settings for BLE advertisements.
             uint16_t adv_int_min = 800;            // Min interval period.
             uint16_t adv_int_max = 800;            // Max interval period.

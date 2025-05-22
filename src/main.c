@@ -20,17 +20,16 @@
     // Declares preprocessor macros for settings. (Before compilation).
     #define VIBRATION_MOTOR_VCC 21          // Vibration motor GPIO pin.
     #define INTERNAL_LED 11                 // Internal LED GPIO pin.           (PICO_DEFAULT_LED_PIN ?)
-    #define IMU_UPPER_VCC 17                // Power (VCC) pin for upper sensor.
-    #define IMU_LOWER_VCC 14                // Power pin for lower sensor.
+    #define IMU_UPPER_VCC 17                // Power (VCC) pin for upper sensor.     //14
+    #define IMU_LOWER_VCC 14                // Power pin for lower sensor.           //1
 
-    #define IMU_UPPER_SDA 18                // SDA GPIO connection for upper sensor. 
-    #define IMU_UPPER_SCL 19                // SCL GPIO connection for upper sensor.
-    #define IMU_LOWER_SDA 12                // SDA GPIO connection for lower sensor.
-    #define IMU_LOWER_SCL 13                // SCL GPIO connection for lower sensor.
-    
+    #define IMU_UPPER_SDA 18                // SDA GPIO connection for upper sensor. //12
+    #define IMU_UPPER_SCL 19                // SCL GPIO connection for upper sensor. //13
+    #define IMU_LOWER_SDA 12                // SDA GPIO connection for lower sensor. //2
+    #define IMU_LOWER_SCL 13                // SCL GPIO connection for lower sensor. //3
 
-    #define IMU_UPPER_I2C_BUS i2c1          // I2C communication bus for upper sensor.
-    #define IMU_LOWER_I2C_BUS i2c0          // I2C comminication bus for lower sensor.
+    #define IMU_UPPER_I2C_BUS i2c1          // I2C communication bus for upper sensor. //i2c0
+    #define IMU_LOWER_I2C_BUS i2c0          // I2C comminication bus for lower sensor. //i2c1
     #define I2C_CLOCK_SPEED 400000          // I2C communication bus speed.
 
     #define MPU_6050_ADDRESS 0x68           // Standard memory adress for MPU_6050 sensors.
@@ -82,8 +81,8 @@
         gpio_set_function(SCL, GPIO_FUNC_I2C);
         
         // Enables built-in pull-up resistors (50 kΩ) on pins. 
-        gpio_pull_up(SDA);
-        gpio_pull_up(SCL);
+        //gpio_pull_up(SDA);
+        //gpio_pull_up(SCL);
         
         // Enables 3.3V current to the power VCC pin.
         gpio_init(VCC);
@@ -347,8 +346,8 @@
     // Evaluates trunk angle against the reference standard.
     EvaluationResult evaluate_trunk_angle_accuracy() {
         
-        EvaluationResult result = {0};    
-        if (sample_count == 0) return result;    
+        EvaluationResult result = {0};
+        if (sample_count == 0) return result;
         float sum_squared_error = 0.0f;
 
         for (int i = 0; i < sample_count; i++) {
@@ -391,13 +390,13 @@
     
         // Updates content of BLE data payload string.
         snprintf(data_payload, PAYLOAD_LENGTH, 
-            "X1: %.2f | Y1: %.2f | Z1: %.2f\nGX1: %d | GY1: %d | GZ1: %d\nT1: %.2f | Pitch1: %.2f°\n\n"
-            "X2: %.2f | Y2: %.2f | Z2: %.2f\nGX2: %d | GY2: %d | GZ2: %d\nT2: %.2f | Pitch2: %.2f°",
+            "X1: %.4f | Y1: %.4f | Z1: %.4f\nGX1: %d | GY1: %d | GZ1: %d\nT1: %.2f | Pitch1: %.2f°\n\n"
+            "X2: %.4f | Y2: %.4f | Z2: %.4f\nGX2: %d | GY2: %d | GZ2: %d\nT2: %.2f | Pitch2: %.2f°",
             g_forces_1[0], g_forces_1[1], g_forces_1[2],
-            gyroscope_1[0], gyroscope_1[1], gyroscope_1[2], 
+            gyroscope_1[0], gyroscope_1[1], gyroscope_1[2],
             (temperature_1/340.0) + 36.53, comp_pitch_1,
-            g_forces_2[0], g_forces_2[1], g_forces_2[2], 
-            gyroscope_2[0], gyroscope_2[1], gyroscope_2[2], 
+            g_forces_2[0], g_forces_2[1], g_forces_2[2],
+            gyroscope_2[0], gyroscope_2[1], gyroscope_2[2],
             (temperature_2/340.0) + 36.53, comp_pitch_2
         );
 
@@ -550,8 +549,6 @@
         
         // Initializes BLE advertisement and related wireless protocols.  
         init_ble();
-
-        sleep_ms(15000);
 
         // Iniitalizes the I2C communication buses.
         i2c_init(IMU_UPPER_I2C_BUS, I2C_CLOCK_SPEED);

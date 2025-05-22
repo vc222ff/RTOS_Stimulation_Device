@@ -1,7 +1,13 @@
 from machine import Pin, I2C
 
-# Initialize I2C (using GP4 for SDA and GP5 for SCL)
-i2c = I2C(0, scl=Pin(5), sda=Pin(4), freq=400000)
+# Configure GPIO15 as output
+led = Pin(17, Pin.OUT)
+
+# Set it HIGH (3.3V)
+led.value(1)
+
+# Initialize I2C (using GP pins for SDA and SCL)
+i2c = I2C(1, scl=Pin(19), sda=Pin(18), freq=100000) # 400kHz or 100 kHz
 
 # Scan I2C bus for connected devices
 devices = i2c.scan()
