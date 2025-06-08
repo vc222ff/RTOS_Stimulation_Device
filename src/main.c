@@ -49,12 +49,19 @@
     static int16_t gyroscope_1[3], gyroscope_2[3];                                  // 16-bit signed integer arrays for gyroscope values.
     static int16_t temperature_1, temperature_2;                                    // 16-bit signed integer for temperature values.
     static float g_forces_1[3], g_forces_2[3];                                      // Floating point values for acceleration in g (9.82 ms^2).
-    static float baseline_pitch_1 = 0, baseline_pitch_2 = 0;                        // Floating point values for calibrated baseline pitch angles.
+    static float filtered_gyro_1[3], filtered_accel_1[3];                           // Floating point values for kalman filtered acceleration.
+    static float filtered_gyro_2[3], filtered_accel_2[3];                           // Floating point values for kalman filtered gyroscope values.
+    static float kalman_gyro_q = 0.001f;                                            // Floating point value for kalman filter acceleration q-value.
+    static float kalman_gyro_r = 0.03f;                                             // Floating point value for kalman filter acceleration r-value.
+    static float kalman_accel_q = 0.001f;                                           // Floating point value for kalman filter gyroscope q-value.
+    static float kalman_accel_r =  0.03f;                                           // Floating point value for kalman filter gyroscope r-value.
     static float comp_pitch_1 = 0, comp_pitch_2 = 0;                                // Floating point values for filtered sensor pitch angles.
     static float alpha = 0.95f;                                                     // Floating point value for alpha in complementary filter.
 
-    static float gold_angles[NUM_REFERENCE_SAMPLES];                                          // Floating point array for gold standard values.
-    static float trunk_angles_sensors[NUM_REFERENCE_SAMPLES];                                 // Floating point array for trunk angle values.
+    static float baseline_pitch_1 = 0, baseline_pitch_2 = 0;                        // Floating point values for calibrated baseline pitch angles.
+
+    static float gold_angles[NUM_REFERENCE_SAMPLES];                                // Floating point array for gold standard values.
+    static float trunk_angles_sensors[NUM_REFERENCE_SAMPLES];                       // Floating point array for trunk angle values.
     static uint8_t sample_count = 0;                                                // 8-bit unsigned integer for iterating sample values.
 
     static btstack_packet_callback_registration_t hci_event_callback_registration;  // Structure for handling HCI events.
@@ -63,7 +70,8 @@
 
     static CalibrationData calibration_config;                                      // Structure for calibration configuration from flash memory. 
     static EvaluationResult evaluation_result;                                      // Structure for error validation evaluation results.
-
+    static KalmanSensor3D kalman_upper;                                             // Structure for the kalman filtering in upper sensor unit.
+    static KalmanSensor3D kalman_lower;                                             // Structure for the kalman filtering in lower sensor unit.
 
     // External reference to BLE server response function.
     extern void send_ble_response(const char *res);
@@ -479,6 +487,15 @@
             read_temperature(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, &temperature_1);
             read_temperature(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, &temperature_2);
             
+            // Filters out sensor noise from raw sensor readings through Kalman filter algorithm.
+            for (int i = 0; i < 3; ++i) {
+                filtered_accel_1[i] = kalman1d_update(&kalman_upper.accel[i], (float)acceleration_1[i]);
+                filtered_gyro_1[i]  = kalman1d_update(&kalman_upper.gyro[i], (float)gyroscope_1[i]);
+                filtered_accel_2[i] = kalman1d_update(&kalman_lower.accel[i], (float)acceleration_2[i]);
+                filtered_gyro_2[i]  = kalman1d_update(&kalman_lower.gyro[i], (float)gyroscope_2[i]);
+            }
+
+
             // Converts and sorts raw accelerometer readings into g-forces.
             g_forces_1[0] = comp_g_force(-acceleration_1[1]);           // MPU-6050 sensor-axes. 2x (x,y,z).
             g_forces_1[1] = comp_g_force(acceleration_1[0]);            // Here it is important to account for sensor missalignment.
@@ -505,26 +522,27 @@
             comp_pitch_2 = alpha * (comp_pitch_2 + pitch_rate_2 * dt) + (1.0f - alpha) * pitch_angle_2;
 
             // Error validation computation.
-            //float trunk_angle = comp_pitch_1 - comp_pitch_2;
-            //if (sample_count < NUM_REFERENCE_SAMPLES) {
-            //    trunk_angles_sensors[sample_count] = trunk_angle;
-            //    gold_angles[sample_count] = 0.0f;        }
+            float trunk_angle = comp_pitch_1 - comp_pitch_2;
+            if (sample_count < NUM_REFERENCE_SAMPLES) {
+                trunk_angles_sensors[sample_count] = trunk_angle;
+                gold_angles[sample_count] = 0.0f;
+            }
 
             // Defines thresholds for bad upper and lower posture angles.
-            //bool bad_posture_threshold =
-            //fabsf(comp_pitch_1 - baseline_pitch_1) > angle_upper_threshold ||   // Uses absolute values (magnitude).
-            //fabsf(comp_pitch_2 - baseline_pitch_2) > angle_lower_threshold;
+            bool bad_posture_threshold =
+            fabsf(comp_pitch_1 - baseline_pitch_1) > angle_upper_threshold ||   // Uses absolute values (magnitude).
+            fabsf(comp_pitch_2 - baseline_pitch_2) > angle_lower_threshold;
 
             // Checks if posture is outside of posture angle threshold or not.
-            //if (bad_posture_threshold && (xTaskGetTickCount() - last_vibration_time > vibration_cooldown)) {
+            if (bad_posture_threshold && (xTaskGetTickCount() - last_vibration_time > vibration_cooldown)) {
                 
                 // Activates the vibration motor component. 
-                //printf("Warning: Bad Posture Detected!\n");
-                //vibrate_motor(VIBRATION_MOTOR_VCC);
+                printf("Warning: Bad Posture Detected!\n");
+                vibrate_motor(VIBRATION_MOTOR_VCC);
 
                 // Updates last vibration time.
-                //last_vibration_time = xTaskGetTickCount();
-            //}
+                last_vibration_time = xTaskGetTickCount();
+            }
 
             // Inverts the onboard LED to display processing state.
             static int blink_counter = 0;
@@ -562,14 +580,18 @@
         init_mpu(IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS, IMU_LOWER_SCL, IMU_LOWER_SDA, IMU_LOWER_VCC);
 
         // Initalizes the vibration motor.
-        //init_output(VIBRATION_MOTOR_VCC);
+        init_output(VIBRATION_MOTOR_VCC);
 
         // Performs the initial personalized calibration of sensors.
-        // calibrate_baseline(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS);
+        calibrate_baseline(IMU_UPPER_I2C_BUS, MPU_6050_ADDRESS, IMU_LOWER_I2C_BUS, MPU_6050_ADDRESS);
 
         // Evaluates sensor measurements against reference standard values.
-        //evaluate_trunk_angle_accuracy();
+        evaluate_trunk_angle_accuracy();
         
+        // Iniitalizes Kalman sensor filtering logic for both sensors.
+        kalman3d_init(&kalman_upper, kalman_gyro_q, kalman_gyro_r, kalman_accel_q, kalman_accel_r);
+        kalman3d_init(&kalman_lower, kalman_gyro_q, kalman_gyro_r, kalman_accel_q, kalman_accel_r);
+
         // Creates a FreeRTOS task for posture monitoring. 
         xTaskCreate(posture_monitor_task, "PostureMonitor", 1024, NULL, 1, NULL);
 
